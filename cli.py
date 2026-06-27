@@ -13,10 +13,10 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from classifier.fetcher import fetch_rss, fetch_url, fetch_multiple_urls
+from classifier.fetcher import fetch_rss, fetch_url
 from classifier.classifier import classify_article
-from classifier.processor import process as phase2_process, ProcessedItem
-from classifier.models import RunSummary, Article, ClassificationResult
+from classifier.processor import process as phase2_process
+from classifier.generator import generate_telegram_posts, save_posts
 
 app = typer.Typer(help="AI News Classifier — filter AI-relevant articles from news feeds")
 console = Console()
@@ -40,7 +40,9 @@ def classify(
     model: str = typer.Option(None, "--model", "-m", help="Override LLM model"),
     api_base: str = typer.Option(None, "--api-base", help="API base URL"),
     api_key: str = typer.Option(None, "--api-key", help="API key"),
-    process: bool = typer.Option(False, "--process", "-p", help="Run Phase 2 (dedup + noise removal + normalization)"),
+    process: bool = typer.Option(False, "--process", "-p", help="Run Phase 2 (dedup + noise removal)"),
+    generate: bool = typer.Option(False, "--generate", "-g", help="Run Phase 3 (Telegram post generation)"),
+    posts_file: str = typer.Option(None, "--posts-file", help="Save Telegram posts to .txt file"),
 ):
     """Classify articles from an RSS feed or URL."""
     config = load_config()
@@ -53,21 +55,24 @@ def classify(
         console.print("[red]Error: No API key. Set in config.yaml or --api-key[/red]")
         raise typer.Exit(1)
 
-    asyncio.run(_run_classify(source, _api_base, _api_key, _model, output, limit, process))
+    asyncio.run(_run_pipeline(source, _api_base, _api_key, _model, output, limit, process, generate, posts_file))
 
 
-async def _run_classify(source: str, api_base: str, api_key: str, model: str, output: str | None, limit: int, run_phase2: bool):
-    """Async classification pipeline."""
-    # Step 1: Fetch articles
-    console.print(f"\n[bold blue]📥 Fetching from:[/bold blue] {source}")
+async def _run_pipeline(
+    source: str, api_base: str, api_key: str, model: str,
+    output: str | None, limit: int,
+    run_phase2: bool, run_phase3: bool, posts_file: str | None,
+):
+    """Full pipeline: Phase 1 → Phase 2 → Phase 3."""
 
-    if source.startswith("http") and any(source.endswith(ext) for ext in [".xml", ".rss", ".atom"]) or "feed" in source or "rss" in source:
+    # ── Phase 1: Fetch + Classify ──────────────────────────────────────
+    console.print(f"\n[bold blue]📥 Phase 1: Fetching from:[/bold blue] {source}")
+
+    if "feed" in source or "rss" in source or source.endswith((".xml", ".rss", ".atom")):
         articles = await fetch_rss(source, limit=limit)
-        feed_type = "RSS"
     elif source.startswith("http"):
         article = await fetch_url(source)
         articles = [article]
-        feed_type = "URL"
     else:
         console.print("[red]Error: Invalid source. Provide an RSS feed URL or article URL.[/red]")
         raise typer.Exit(1)
@@ -78,13 +83,8 @@ async def _run_classify(source: str, api_base: str, api_key: str, model: str, ou
 
     console.print(f"[green]✓ Found {len(articles)} article(s)[/green]\n")
 
-    # Step 2: Classify each article
     classifications = []
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
         for i, article in enumerate(articles):
             task = progress.add_task(f"Classifying [{i+1}/{len(articles)}]: {article.title[:50]}...", total=None)
             try:
@@ -94,40 +94,59 @@ async def _run_classify(source: str, api_base: str, api_key: str, model: str, ou
                 console.print(f"  [red]✗ Error: {e}[/red]")
             progress.update(task, completed=True)
 
-    # Step 3: Display classification results
     _display_classifications(classifications)
 
-    # Step 4: Phase 2 processing (if requested)
+    relevant_count = sum(1 for r in classifications if r.relevant)
+    avg_conf = sum(r.confidence for r in classifications) / len(classifications) if classifications else 0
+    console.print(f"\n[bold]📊 Phase 1:[/bold] {relevant_count}/{len(classifications)} relevant | Avg confidence: {avg_conf:.2f}")
+
+    # ── Phase 2: Processing ────────────────────────────────────────────
     processed_data = None
     if run_phase2:
         console.print("\n[bold magenta]🔄 Phase 2: Processing...[/bold magenta]")
 
-        # Filter for relevant items only
-        relevant_articles = []
-        relevant_classifications = []
-        for art, cls in zip(articles, classifications):
-            if cls.relevant:
-                relevant_articles.append(art)
-                relevant_classifications.append(cls)
+        relevant_articles = [art for art, cls in zip(articles, classifications) if cls.relevant]
+        relevant_classifications = [cls for cls in classifications if cls.relevant]
 
         if not relevant_articles:
             console.print("[yellow]No relevant articles to process.[/yellow]")
         else:
             processed_data = phase2_process(relevant_articles, relevant_classifications)
             _display_processed(processed_data)
+            console.print(f"[bold]🧹 Phase 2:[/bold] {len(processed_data)} items after dedup + noise removal")
 
-    # Step 5: Save if requested
+    # ── Phase 3: Telegram Post Generation ──────────────────────────────
+    posts = None
+    if run_phase3:
+        if processed_data is None:
+            console.print("[red]Error: --generate requires --process. Use both flags.[/red]")
+            raise typer.Exit(1)
+
+        console.print("\n[bold cyan]📝 Phase 3: Generating Telegram posts...[/bold cyan]")
+
+        posts = await generate_telegram_posts(processed_data, api_base, api_key, model)
+        _display_posts_preview(posts)
+        console.print(f"[bold]📝 Phase 3:[/bold] {len(posts)} posts generated")
+
+        # Save posts
+        if posts_file:
+            save_posts(posts, posts_file)
+            console.print(f"[green]💾 Posts saved to: {posts_file}[/green]")
+
+    # ── Save JSON ──────────────────────────────────────────────────────
     if output:
         _save_results(classifications, output, processed_data)
 
-    # Summary
-    relevant_count = sum(1 for r in classifications if r.relevant)
-    avg_conf = sum(r.confidence for r in classifications) / len(classifications) if classifications else 0
-    console.print(f"\n[bold]📊 Phase 1 Summary:[/bold] {relevant_count}/{len(classifications)} relevant | Avg confidence: {avg_conf:.2f}")
+    # ── Final Summary ──────────────────────────────────────────────────
+    console.print("\n[bold green]═══ Pipeline Complete ═══[/bold green]")
+    console.print(f"  Phase 1: {relevant_count}/{len(classifications)} relevant articles")
+    if processed_data:
+        console.print(f"  Phase 2: {len(processed_data)} cleaned items")
+    if posts:
+        console.print(f"  Phase 3: {len(posts)} Telegram posts ready")
 
-    if processed_data is not None:
-        console.print(f"[bold]🧹 Phase 2 Summary:[/bold] {len(processed_data)} items after dedup + noise removal")
 
+# ── Display Functions ──────────────────────────────────────────────────────
 
 def _display_classifications(results):
     """Show classification results in a table."""
@@ -152,13 +171,24 @@ def _display_processed(processed_data: list[dict]):
     table.add_column("#", style="dim", width=3)
     table.add_column("Title", max_width=45)
     table.add_column("Confidence", justify="center", width=10)
-    table.add_column("Source", max_width=20)
 
     for i, item in enumerate(processed_data, 1):
-        source = (item.get("source") or "")[:20]
-        table.add_row(str(i), item["title"][:45], f"{item['confidence']:.2f}", source)
+        table.add_row(str(i), item["title"][:45], f"{item['confidence']:.2f}")
 
     console.print(table)
+
+
+def _display_posts_preview(posts: list[str]):
+    """Show a preview of generated posts."""
+    console.print("\n[bold]📋 Posts Preview:[/bold]")
+    for i, post in enumerate(posts, 1):
+        # Show first 5 lines of each post
+        lines = post.split("\n")[:5]
+        preview = "\n".join(lines)
+        console.print(f"\n[dim]─── Post {i} ───[/dim]")
+        console.print(preview)
+        if len(post.split("\n")) > 5:
+            console.print("[dim]  ...[/dim]")
 
 
 def _save_results(classifications, output_path, processed_data=None):
