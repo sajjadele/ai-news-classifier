@@ -23,6 +23,14 @@ You MUST NOT:
 - Drift into summarization or commentary
 - Classify based only on company name (OpenAI, Anthropic, etc.) — the article must be about AI itself
 
+CONFIDENCE CALIBRATION (CRITICAL):
+- 0.90-1.00: AI is unambiguously the main subject. No doubt.
+- 0.70-0.89: AI is likely the main subject but there is minor ambiguity.
+- 0.50-0.69: Borderline. AI is present but may not be central.
+- Below 0.50: AI is incidental or not the main subject.
+
+Do NOT default to 1.00. Use the full range. Be honest about uncertainty.
+
 Return ONLY a structured JSON object."""
 
 USER_PROMPT_TEMPLATE = """Classify the following article:
