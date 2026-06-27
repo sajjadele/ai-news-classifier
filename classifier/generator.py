@@ -133,9 +133,13 @@ Format: 🧠 <Persian natural hook> (<English compressed technical reference>)
 
 Must NOT be generic.
 Must be one of:
-- Market implication
-- Technical shift
-- Strategic consequence
+- Market implication (e.g. "بازار عظیم آسیا برای آمریکاییها از دست میرود")
+- Technical shift (e.g. "جابجایی از AI مبتنی بر مدل به AI مبتنی بر زیرساخت")
+- Strategic consequence (e.g. "فشار تنظیمکنندهها استراتژی استقرار را تغییر میدهد")
+
+MUST include the actual explanation, NOT just the label.
+Example: ✅ "Strategic consequence — بازار آسیا ممکن است..."
+Example: ❌ "Strategic consequence" (فقط لیبل بدون توضیح)
 
 MUST be directly inferable from input content.
 If not inferable → write based on what IS in the content (minimal, factual).
