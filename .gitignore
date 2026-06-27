@@ -1,9 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
-results.json
-results_full.json
-results_phase2.json
+*.json
 posts.txt
 .env
 config.yaml
