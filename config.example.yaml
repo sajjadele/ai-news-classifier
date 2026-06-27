@@ -1,0 +1,18 @@
+# AI News Classifier — Configuration
+# Copy this file to config.yaml and fill in your credentials.
+
+# API endpoint (OpenAI-compatible)
+api_base: "https://router.bynara.id/v1"
+
+# Your API key (get from your provider)
+api_key: "YOUR_API_KEY_HERE"
+
+# Model to use for classification
+model: "mistral-medium-3-5"
+
+# Default RSS feeds to check
+feeds:
+  - name: "TechCrunch AI"
+    url: "https://techcrunch.com/category/artificial-intelligence/feed/"
+  - name: "The Verge AI"
+    url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
