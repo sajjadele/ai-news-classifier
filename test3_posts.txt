@@ -1,0 +1,53 @@
+*Asian AI startups launch Mythos-like models as Anthropic’s export ban drags on*
+
+• New AI models in Asia offer Mythos-like capabilities.
+• These models avoid export ban concerns.
+• U.S. AI labs may not recover the Asian market.
+
+🔍 *Why it matters:*
+N/A
+
+#policy
+🔗 https://techcrunch.com/2026/06/27/asian-ai-startups-launch-mythos-like-models-as-anthropics-export-ban-drags-on/
+
+========================================
+
+*Trump Admin releases Anthropic Mythos to be used by more than 100 US companies, agencies*
+
+• Over 100 companies and government agencies are authorized to use Mythos 5.
+• Authorization extends to their non-American employees.
+• The release is attributed to the Trump administration.
+
+🔍 *Why it matters:*
+N/A
+
+#policy
+🔗 https://techcrunch.com/2026/06/26/trump-admin-releases-anthropic-mythos-to-be-used-by-more-than-100-us-companies-agencies/
+
+========================================
+
+*OpenAI hires Uber India chief to lead India operations*
+
+• OpenAI has hired the former chief of Uber India.
+• The hire is part of OpenAI's push into India.
+• The expansion includes offices, partnerships, and hiring in the country.
+
+🔍 *Why it matters:*
+N/A
+
+#product
+🔗 https://techcrunch.com/2026/06/26/openai-poaches-uber-india-chief-to-lead-its-biggest-market-outside-the-u-s/
+
+========================================
+
+*OpenAI developing custom AI inference chip with Broadcom*
+
+• Nvidia has dominated the AI chip market for years
+• OpenAI is building Jalapeño, a custom inference chip with Broadcom
+• Google, Apple, and SpaceX are also developing their own chips
+
+🔍 *Why it matters:*
+N/A
+
+#product
+🔗 https://techcrunch.com/video/why-everyone-from-openai-to-spacex-is-building-their-own-chips-and-turning-up-the-heat-on-nvidia/

@@ -36,44 +36,87 @@ CATEGORY_RULES: list[tuple[str, list[str]]] = [
         "layoff", "layoffs", "startup", "raises", "series a", "series b",
         "series c", "venture capital", "investment", "merger", "buyout",
     ]),
+    ("business", [
+        "partnership", "deal", "contract", "revenue", "profit", "loss",
+        "quarterly", "earnings", "market share", "growth", "strategy",
+        "ceo", "cto", "executive", "hire", "hiring", "restructuring",
+    ]),
 ]
 
-# LLM system prompt — strict no-hallucination
-SYSTEM_PROMPT = """You are a technical content writer for a Telegram channel about AI news.
+# LLM system prompt — strict no-hallucination, Telegram-native formatting
+SYSTEM_PROMPT = """You are a STRICT grounded content formatter and UX enhancer for a Telegram AI News channel.
 
-Your job is to convert a single news article into a concise Telegram post.
+You are NOT allowed to invent information.
+You are NOT allowed to add facts.
+You are NOT allowed to change meaning.
 
-STRICT RULES:
-- You MUST NOT add any information not explicitly present in the input content.
-- You MUST NOT infer, speculate, or extrapolate beyond what is written.
-- For "Why it matters": ONLY write a short paragraph if significance is EXPLICITLY stated in the content. If not, write EXACTLY: N/A
-- No hype words (revolutionary, groundbreaking, game-changing, etc.)
-- Neutral, technical tone
-- High signal, low noise
+Your ONLY job is to improve readability and engagement of already-verified structured news items.
 
-OUTPUT FORMAT (use exactly this structure):
+---
 
-*<Clean Title>*
+# OUTPUT FORMAT (STRICT)
 
-• <Key point 1>
-• <Key point 2>
-• <Key point 3>
+For each item, output EXACTLY this format (use Telegram-native formatting):
+
+🧠 *<Improved Title (still factual, no exaggeration)>*
+
+• <Bullet 1: key factual point>
+• <Bullet 2: key factual point>
+• <Bullet 3: key factual point (optional if exists in input)>
 
 🔍 *Why it matters:*
-<1 short paragraph OR "N/A">
+<ONLY derived implication from given content. Must be explicitly grounded. If not inferable, write: "Impact is limited to reported scope of the article.">
 
 #<category will be provided>
 🔗 <url will be provided>
 
-RULES:
-- Exactly 3 bullet points (or fewer only if content has fewer than 3 distinct facts)
-- Each bullet: 1 sentence maximum
-- Under 250 words total
-- Title: no emojis, no clickbait, must reflect content accurately
-- Use * for Telegram bold (not **)
-- Use • for bullets (not - or *)
-- No ---, no horizontal lines, no Markdown headings
-- Do NOT include the category or URL — they will be added automatically"""
+---
+
+# HARD CONSTRAINTS (NON-NEGOTIABLE)
+
+## 1. NO NEW FACTS
+- Do NOT introduce new entities
+- Do NOT add technical details not present in input
+- Do NOT assume motivations or hidden context
+
+## 2. NO HALLUCINATED REASONING
+- "Why it matters" must be directly inferable from input
+- If not inferable → write: "Impact is limited to reported scope of the article."
+
+## 3. TITLE RULES
+- Must stay faithful to original meaning
+- You MAY improve clarity, simplify, reorder words, remove redundancy
+- You MUST NOT clickbait, emotional frame, or exaggerate
+- Use Telegram bold: *Title* (with asterisks)
+
+## 4. BULLET RULES
+- Max 3 bullets
+- Each bullet = one factual idea
+- No repetition
+- Use • for bullets
+
+## 5. UX IMPROVEMENT ALLOWED (SAFE OPERATIONS)
+You MAY: shorten sentences, improve readability, reorder for clarity, remove noise words, merge redundant phrases
+You MAY NOT: add new claims, infer beyond text, expand scope
+
+## 6. FORMATTING RULES (TELEGRAM-NATIVE)
+- Use *text* for bold (NOT backticks, NOT **text**)
+- Use • for bullets (NOT - or *)
+- Do NOT use ---, horizontal lines, or Markdown headings
+- Do NOT include the category or URL — they will be added automatically
+
+---
+
+# OBJECTIVE
+
+Transform structured news into:
+- readable
+- clean
+- Telegram-friendly
+- fully grounded
+- zero hallucination output
+
+Generate the post now:"""
 
 
 # ── Category Assignment (rule-based) ──────────────────────────────────────
@@ -85,6 +128,7 @@ def assign_category(content: str) -> str:
     - research: paper / benchmark / model training / dataset / experiment
     - policy: regulation / law / ban / government / EU / policy
     - industry: funding / acquisition / valuation / IPO / revenue / layoffs
+    - business: partnership / deal / contract / revenue / profit / CEO
     - product: default (none of the above)
     """
     content_lower = content.lower()
@@ -116,10 +160,11 @@ Title: {title}
 Content: {content}
 
 Remember:
-- Exactly 3 bullet points (1 sentence each)
-- "Why it matters" — ONLY if explicitly stated in content, otherwise N/A
+- Max 3 bullets (1 sentence each)
+- "Why it matters" — ONLY if directly inferable from content, otherwise use fallback
 - No hallucination, no speculation
-- Neutral technical tone
+- Telegram formatting: *bold*, • bullets
+- Do NOT include category or URL — they will be added
 
 Generate the post now:"""
 
@@ -138,7 +183,7 @@ Generate the post now:"""
         "Authorization": f"Bearer {api_key}",
     }
 
-    async with httpx.AsyncClient(timeout=60, proxy="http://127.0.0.1:10808/") as client:
+    async with httpx.AsyncClient(timeout=60, proxy="http://127.0.0.1:10808/", verify=False) as client:
         resp = await client.post(
             f"{api_base}/chat/completions",
             json=payload,
@@ -157,7 +202,7 @@ Generate the post now:"""
 def _assemble_post(llm_output: str, category: str, url: str) -> str:
     """Assemble final post: LLM content + category tag + URL.
 
-    Removes any category/URL the LLM might have added (shouldn't, but safety).
+    Removes any category/URL the LLM might have added (safety).
     """
     # Strip any category tag or URL the LLM might have hallucinated
     lines = llm_output.strip().split("\n")
@@ -171,9 +216,11 @@ def _assemble_post(llm_output: str, category: str, url: str) -> str:
             continue
         if stripped.startswith("http"):
             continue
+        if stripped.startswith("Source:"):
+            continue
         clean_lines.append(line)
 
-    # Build final post
+    # Build final post — hierarchy: title → bullets → insight → category → source
     post_body = "\n".join(clean_lines).strip()
     final_post = f"{post_body}\n\n#{category}\n🔗 {url}"
 
