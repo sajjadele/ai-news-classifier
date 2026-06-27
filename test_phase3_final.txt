@@ -1,0 +1,71 @@
+🧠 استارت‌آپ‌های آسیایی مدل‌هایی شبیه Mythos عرضه کردند (Anthropic export ban drives Asian Mythos-like models)
+
+• استارت‌آپ‌های آسیایی مدل‌های جدیدی با قابلیت‌های مشابه Mythos (Anthropic) معرفی کردند
+• محدودیت‌های صادراتی آمریکا مانع دسترسی به بازار آسیا برای آزمایشگاه‌های آمریکایی شده است
+• بازار عظیم آسیا ممکن است برای همیشه از دسترس شرکت‌های آمریکایی خارج شود
+
+🔍 چرا مهم است:
+Market implication — بازار آسیا به عنوان یکی از بزرگ‌ترین بازارهای AI در حال انتقال به رقبای محلی است
+
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/27/asian-ai-startups-launch-mythos-like-models-as-anthropics-export-ban-drags-on/
+
+========================================
+
+🧠 دسترسی گسترده به Mythos 5 برای شرکت‌ها و آژانس‌های آمریکایی (Anthropic Mythos 5 deployment expansion)
+
+• بیش از ۱۰۰ شرکت و آژانس دولتی آمریکا مجوز استفاده از Mythos 5 را دریافت کرده‌اند
+• دسترسی شامل کارکنان غیرآمریکایی این سازمان‌ها نیز می‌شود
+• این اقدام گامی به سوی گسترش استفاده سازمانی از مدل‌های پیشرفته Anthropic است
+
+🔍 چرا مهم است:
+Technical shift — گسترش دسترسی به مدل‌های پیشرفته به معنای استانداردسازی بیشتر آنها در زیرساخت‌های سازمانی است
+
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/trump-admin-releases-anthropic-mythos-to-be-used-by-more-than-100-us-companies-agencies/
+
+========================================
+
+🧠 انتشار محدود GPT-5.6 پس از درخواست دولت (OpenAI limits GPT-5.6 rollout after government request)
+
+• OpenAI انتشار GPT-5.6 را پس از درخواست دولت محدود کرد
+• این محدودیت‌ها به‌صورت موقت اعمال شده‌اند، اما OpenAI معتقد است این فرآیند نباید به استاندارد بلندمدت تبدیل شود
+• محدودیت‌ها دسترسی کاربران، توسعه‌دهندگان، کسب‌وکارها و شرکای جهانی به ابزارهای پیشرفته را با مشکل مواجه می‌کند
+
+🔍 چرا مهم است:
+Strategic consequence — محدودیت‌های دولتی می‌تواند دسترسی به فناوری‌های پیشرفته را برای ذینفعان کلیدی با چالش مواجه کند و روند توسعه را کند نماید
+
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/openai-limits-gpt-5-6-rollout-after-government-request-says-restrictions-shouldnt-be-the-norm/
+
+========================================
+
+🧠 چرا غول‌های فناوری به سمت ساخت تراشه‌های اختصاصی می‌روند (Custom AI Chips Shift)
+
+• OpenAI با معرفی تراشه Jalapeño (ساخت Broadcom) به جمع شرکت‌هایی مانند Google، Apple و SpaceX پیوست که تراشه‌های اختصاصی AI می‌سازند
+• هدف کاهش وابستگی به یک تامین‌کننده (Nvidia) و مدیریت ریسک زنجیره تامین است
+• این حرکت فشار رقابتی بر انحصار Nvidia در بازار تراشه‌های AI را افزایش می‌دهد
+
+🔍 چرا مهم است:
+Technical shift — انتقال از وابستگی کامل به Nvidia به معماری‌های سفارشی و متنوع در زیرساخت AI
+
+#AIHardware
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/video/why-everyone-from-openai-to-spacex-is-building-their-own-chips-and-turning-up-the-heat-on-nvidia/
+
+========================================
+
+🧠 مدل‌های هوش مصنوعی دیگر تنها رقابت فنی نیستند (AI Models' Political Consequences)
+
+• مدل‌های هوش مصنوعی به سطحی رسیده‌اند که تأثیرات سیاسی واقعی دارند
+• پیشرفت‌ها به حدی است که نیاز به اقدام جمعی برای مدیریت پیامدها احساس می‌شود
+
+🔍 چرا مهم است:
+Technical shift — توانایی‌های مدل‌ها دیگر صرفاً فنی نیستند و ابعاد سیاسی را تحت تأثیر قرار می‌دهند
+
+#AIModels
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/its-not-about-anthropic-vs-openai-anymore/

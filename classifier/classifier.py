@@ -1,113 +1,53 @@
-"""LLM-based article classifier."""
+"""LLM-based article classifier — strict relevance classification."""
 
 import json
 import httpx
 from .models import Article, ClassificationResult
 
 
-CLASSIFICATION_PROMPT = """You are an AI news relevance classifier inside a news aggregation pipeline.
+SYSTEM_PROMPT = """You are a strict Relevance Classification Engine.
 
-Your job is STRICT binary classification:
+Your job is to decide whether a news article is primarily about Artificial Intelligence.
 
-- Class 1: AI-RELEVANT NEWS
-- Class 2: NOT AI-RELEVANT NEWS
+Definition of "relevant":
+- The main subject must be AI systems, AI models, AI companies, AI infrastructure, AI policy, or AI hardware.
+- AI being mentioned as a tool is NOT enough.
+- Business hiring, funding, or events are NOT relevant unless AI is the core subject.
+- Personnel moves (executives joining/leaving companies) are NOT relevant unless the move is specifically about AI research or AI product leadership.
+- General tech news involving AI companies is NOT relevant unless the article is specifically about AI technology, models, or policy.
 
----
+You MUST NOT:
+- Add external knowledge
+- Infer beyond the text
+- Make assumptions about industry importance
+- Drift into summarization or commentary
+- Classify based only on company name (OpenAI, Anthropic, etc.) — the article must be about AI itself
 
-# CRITICAL DEFINITION (VERY IMPORTANT)
+Return ONLY a structured JSON object."""
 
-An article is AI-RELEVANT ONLY IF:
+USER_PROMPT_TEMPLATE = """Classify the following article:
 
-✔️ It describes AI systems, models, or algorithms as the PRIMARY subject
-✔️ It discusses AI companies (OpenAI, Anthropic, Google DeepMind, etc.) in a meaningful technical or business context
-✔️ It reports on AI products, model releases, regulation, or deployment
-
----
-
-# DO NOT MARK AS AI-RELEVANT IF:
-
-❌ AI is only mentioned as a tool in passing
-❌ AI is used incidentally (e.g. "used AI to write article", "AI helped analysis")
-❌ It is a general business/personnel/news story involving an AI company but NOT about AI itself
-❌ It is metaphorical or vague AI reference
-
----
-
-# DECISION RULES (STRICT PRIORITY ORDER)
-
-## 1. Primary AI subject test (HIGHEST PRIORITY)
-If AI is not the main topic → NOT RELEVANT
-
-## 2. Technical/business depth test
-Must include at least one:
-- model/system name
-- AI product release
-- AI infrastructure/deployment
-- AI policy/regulation
-
-## 3. Context dominance test
-If removing AI mentions does NOT change meaning of article → NOT RELEVANT
-
----
-
-# OUTPUT FORMAT (STRICT)
-
-Return ONLY this JSON object, no other text:
-
-{{
-  "relevant": true | false,
-  "confidence": 0.0 - 1.0,
-  "reason": "short technical explanation grounded in text"
-}}
-
----
-
-# CONFIDENCE RULES
-
-- 0.90–1.00 → explicit AI-centric article
-- 0.70–0.89 → strong AI context but minor ambiguity
-- 0.50–0.69 → borderline (prefer false unless strong evidence)
-
-NEVER use high confidence unless AI is central topic.
-
----
-
-# HARD CONSTRAINTS
-
-- Do NOT assume AI relevance
-- Do NOT infer missing context
-- Do NOT classify based only on company name
-- Do NOT be overly inclusive
-- Prefer FALSE when uncertain
-
----
-
-# OBJECTIVE
-
-Maximize precision over recall.
-It is better to miss weak AI articles than to incorrectly include non-AI articles.
-
----
-
-## Input Article:
 Title: {title}
 Content: {content}
 
----
+Return JSON with:
 
-Return ONLY the JSON object. No other text.
-"""
+{{
+  "relevant": boolean,
+  "confidence": float (0 to 1),
+  "reason": "short strict justification based only on text"
+}}"""
 
 
 async def classify_article(
     article: Article,
     api_base: str,
     api_key: str,
-    model: str = "gpt-3.5-turbo",
+    model: str = "mistral-medium-3-5",
 ) -> ClassificationResult:
     """Classify a single article using an LLM."""
 
-    prompt = CLASSIFICATION_PROMPT.format(
+    user_prompt = USER_PROMPT_TEMPLATE.format(
         title=article.title,
         content=article.content[:2000],  # Safety cap
     )
@@ -115,8 +55,8 @@ async def classify_article(
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": "You are a precise classification module. Output ONLY valid JSON."},
-            {"role": "user", "content": prompt},
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
         ],
         "temperature": 0.0,
         "max_tokens": 200,
