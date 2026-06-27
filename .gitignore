@@ -2,7 +2,9 @@
 __pycache__/
 *.pyc
 results.json
+results_full.json
 results_phase2.json
+posts.txt
 .env
 config.yaml
 *.egg-info/
