@@ -5,26 +5,87 @@ import httpx
 from .models import Article, ClassificationResult
 
 
-CLASSIFICATION_PROMPT = """You are a high-precision classification module in an AI news processing system.
+CLASSIFICATION_PROMPT = """You are an AI news relevance classifier inside a news aggregation pipeline.
 
-Your task is to determine whether the given article is relevant to Artificial Intelligence (AI) or not.
+Your job is STRICT binary classification:
 
-## Definition of AI relevance:
-Include ONLY content related to:
-- Machine Learning (ML)
-- Deep Learning
-- Large Language Models (LLMs)
-- Generative AI
-- AI research papers or breakthroughs
-- AI products, companies, or model releases
-- AI infrastructure (training, inference, GPUs) IF directly related
-- AI regulation or policy IF directly impacts AI systems
+- Class 1: AI-RELEVANT NEWS
+- Class 2: NOT AI-RELEVANT NEWS
 
-Exclude:
-- General tech news without AI component
-- Marketing content without technical substance
-- Hardware news unrelated to AI workloads
-- Crypto, blockchain, general software updates (unless AI-specific)
+---
+
+# CRITICAL DEFINITION (VERY IMPORTANT)
+
+An article is AI-RELEVANT ONLY IF:
+
+✔️ It describes AI systems, models, or algorithms as the PRIMARY subject
+✔️ It discusses AI companies (OpenAI, Anthropic, Google DeepMind, etc.) in a meaningful technical or business context
+✔️ It reports on AI products, model releases, regulation, or deployment
+
+---
+
+# DO NOT MARK AS AI-RELEVANT IF:
+
+❌ AI is only mentioned as a tool in passing
+❌ AI is used incidentally (e.g. "used AI to write article", "AI helped analysis")
+❌ It is a general business/personnel/news story involving an AI company but NOT about AI itself
+❌ It is metaphorical or vague AI reference
+
+---
+
+# DECISION RULES (STRICT PRIORITY ORDER)
+
+## 1. Primary AI subject test (HIGHEST PRIORITY)
+If AI is not the main topic → NOT RELEVANT
+
+## 2. Technical/business depth test
+Must include at least one:
+- model/system name
+- AI product release
+- AI infrastructure/deployment
+- AI policy/regulation
+
+## 3. Context dominance test
+If removing AI mentions does NOT change meaning of article → NOT RELEVANT
+
+---
+
+# OUTPUT FORMAT (STRICT)
+
+Return ONLY this JSON object, no other text:
+
+{{
+  "relevant": true | false,
+  "confidence": 0.0 - 1.0,
+  "reason": "short technical explanation grounded in text"
+}}
+
+---
+
+# CONFIDENCE RULES
+
+- 0.90–1.00 → explicit AI-centric article
+- 0.70–0.89 → strong AI context but minor ambiguity
+- 0.50–0.69 → borderline (prefer false unless strong evidence)
+
+NEVER use high confidence unless AI is central topic.
+
+---
+
+# HARD CONSTRAINTS
+
+- Do NOT assume AI relevance
+- Do NOT infer missing context
+- Do NOT classify based only on company name
+- Do NOT be overly inclusive
+- Prefer FALSE when uncertain
+
+---
+
+# OBJECTIVE
+
+Maximize precision over recall.
+It is better to miss weak AI articles than to incorrectly include non-AI articles.
 
 ---
 
@@ -34,22 +95,7 @@ Content: {content}
 
 ---
 
-## Output Rules (STRICT JSON ONLY):
-
-Return ONLY this JSON object, no other text:
-
-{{
-  "relevant": true/false,
-  "confidence": 0.0 to 1.0,
-  "reason": "short technical justification"
-}}
-
----
-
-## Decision Rules:
-- If uncertain → choose false unless AI relevance is explicit
-- Prioritize precision over recall
-- Do NOT assume AI relevance from vague keywords like "smart", "automation", "future"
+Return ONLY the JSON object. No other text.
 """
 
 
