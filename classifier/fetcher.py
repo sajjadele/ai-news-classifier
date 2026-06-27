@@ -43,7 +43,7 @@ async def fetch_rss(feed_url: str, limit: int = 10) -> list[Article]:
             content=content[:3000],  # Cap content length
             url=entry.get("link"),
             source=feed_url,
-            published=pub_date,
+            published_at=pub_date,
         ))
 
     return articles

@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 results.json
+results_phase2.json
 .env
 config.yaml
 *.egg-info/

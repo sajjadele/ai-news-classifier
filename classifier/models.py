@@ -11,7 +11,7 @@ class Article(BaseModel):
     content: str
     url: Optional[str] = None
     source: Optional[str] = None
-    published: Optional[datetime] = None
+    published_at: Optional[datetime] = None
 
 
 class ClassificationResult(BaseModel):
