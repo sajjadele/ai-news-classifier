@@ -1,120 +1,186 @@
-"""Phase 3: Telegram post generator — rule-based category + LLM content.
+"""Phase 3: Telegram post generator — Persian, production-grade.
 
-Converts cleaned AI news items into Telegram-ready structured posts.
+Converts cleaned AI news items into high-quality Persian Telegram posts.
 - Category: deterministic keyword matching (no LLM)
-- Post content: LLM per item (strict no-hallucination prompt)
+- Post content: LLM per item (strict no-hallucination, Persian output)
 - Confidence < 0.70 → skip
 """
 
 import json
 import re
-from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
-
-from .models import Article, ClassificationResult
 
 
 # ── Constants ──────────────────────────────────────────────────────────────
 
 CONFIDENCE_THRESHOLD = 0.70
 
-# Category keyword rules (order matters — first match wins)
+# Source name mapping (domain → friendly Persian name)
+SOURCE_NAMES = {
+    "techcrunch.com": "TechCrunch",
+    "theverge.com": "The Verge",
+    "technologyreview.com": "MIT Technology Review",
+    "arstechnica.com": "Ars Technica",
+    "wired.com": "WIRED",
+    "venturebeat.com": "VentureBeat",
+    "thenextweb.com": "The Next Web",
+    "engadget.com": "Engadget",
+    "zdnet.com": "ZDNet",
+    "theregister.com": "The Register",
+    "bbc.com": "BBC",
+    "reuters.com": "Reuters",
+    "bloomberg.com": "Bloomberg",
+    "nytimes.com": "New York Times",
+    "theguardian.com": "The Guardian",
+}
+
+# New taxonomy keyword rules
 CATEGORY_RULES: list[tuple[str, list[str]]] = [
-    ("research", [
+    ("Research", [
         "paper", "benchmark", "model training", "dataset", "experiment",
         "arxiv", "preprint", "research", "study", "findings", "methodology",
-        "ablation", "state-of-the-art", "sota", "evaluation",
+        "ablation", "state-of-the-art", "sota", "evaluation", "peer-reviewed",
     ]),
-    ("policy", [
+    ("AIPolicy", [
         "regulation", "regulate", "law", "ban", "government", "eu ",
         "european union", "policy", "legislation", "compliance", "legal",
-        "congress", "senate", "executive order", "sanction",
+        "congress", "senate", "executive order", "sanction", "antitrust",
     ]),
-    ("industry", [
-        "funding", "acquisition", "acquire", "valuation", "ipo", "revenue",
-        "layoff", "layoffs", "startup", "raises", "series a", "series b",
-        "series c", "venture capital", "investment", "merger", "buyout",
+    ("Funding", [
+        "funding", "raises", "series a", "series b", "series c",
+        "venture capital", "investment", "seed round", "valuation",
     ]),
-    ("business", [
-        "partnership", "deal", "contract", "revenue", "profit", "loss",
-        "quarterly", "earnings", "market share", "growth", "strategy",
-        "ceo", "cto", "executive", "hire", "hiring", "restructuring",
+    ("AIHardware", [
+        "chip", "gpu", "tpu", "hardware", "semiconductor", "nvidia",
+        "amd", "intel", "custom silicon", "asic", "accelerator",
+        "data center", "server",
+    ]),
+    ("BigTech", [
+        "google", "microsoft", "apple", "amazon", "meta", "facebook",
+        "alphabet", "openai", "anthropic", "deepmind",
+    ]),
+    ("Startups", [
+        "startup", "founder", "launch", "yc", "accelerator", "incubator",
+    ]),
+    ("Infrastructure", [
+        "cloud", "api", "deployment", "inference", "training infrastructure",
+        "mlops", "devops", "kubernetes", "docker", "scaling",
     ]),
 ]
 
-# LLM system prompt — strict no-hallucination, Telegram-native formatting
-SYSTEM_PROMPT = """You are a STRICT grounded content formatter and UX enhancer for a Telegram AI News channel.
+# LLM system prompt — Persian, production-grade, no hallucination
+SYSTEM_PROMPT = """You are a technical news editor and content strategist for a Persian Telegram AI News channel.
 
-You are NOT allowed to invent information.
-You are NOT allowed to add facts.
-You are NOT allowed to change meaning.
+Your job is to convert structured AI news data into high-quality Persian Telegram posts.
 
-Your ONLY job is to improve readability and engagement of already-verified structured news items.
+You do NOT simplify knowledge. You preserve technical depth while improving readability.
 
 ---
 
 # OUTPUT FORMAT (STRICT)
 
-For each item, output EXACTLY this format (use Telegram-native formatting):
+For each item, output EXACTLY this format:
 
-🧠 *<Improved Title (still factual, no exaggeration)>*
+🧠 <Persian hook title> (<English compressed technical title>)
 
-• <Bullet 1: key factual point>
-• <Bullet 2: key factual point>
-• <Bullet 3: key factual point (optional if exists in input)>
+• <Bullet 1: Fact — what happened>
+• <Bullet 2: Mechanism — how it happened>
+• <Bullet 3: Implication — why it matters>
 
-🔍 *Why it matters:*
-<ONLY derived implication from given content. Must be explicitly grounded. If not inferable, write: "Impact is limited to reported scope of the article.">
+🔍 چرا مهم است:
+<One of: market implication / technical shift / strategic consequence — MUST be directly grounded in content>
 
 #<category will be provided>
-🔗 <url will be provided>
+📖 مطالعه کامل مقاله در <source name will be provided>
+<url will be provided>
+
+---
+
+# LANGUAGE RULES
+
+- Primary language: Persian
+- English allowed ONLY for: technical terms, product names, model names (GPT-5, Claude, etc.)
+- Format: Term (English) → Persian explanation optional
+- Example: Large Language Model (مدل زبانی بزرگ)
+
+---
+
+# TITLE RULES
+
+Format: 🧠 <Persian natural hook> (<English compressed technical reference>)
+- Persian part = natural, human-readable hook
+- English part = compressed technical reference
+- No full translation
+- No excessive English sentence
+- No clickbait, no exaggeration
+
+---
+
+# BULLET RULES
+
+• 2–4 bullets max
+• Each bullet = information-dense, ONE purpose:
+  - Fact (what happened)
+  - Mechanism (how it happened)
+  - Implication (why it matters)
+❌ Forbidden: generic statements, repetition of title, vague wording
+
+---
+
+# WHY IT MATTERS RULES
+
+Must NOT be generic.
+Must be one of:
+- Market implication
+- Technical shift
+- Strategic consequence
+
+MUST be directly inferable from input content.
+If not inferable → write based on what IS in the content (minimal, factual).
+❌ Forbidden: "Impact is limited...", empty or neutral statements
+
+---
+
+# STYLE CONSTRAINTS
+
+- No exaggeration
+- No clickbait tone
+- No emotional language
+- No emojis except: 🧠 (title), 🔍 (why it matters), 📖 (source)
 
 ---
 
 # HARD CONSTRAINTS (NON-NEGOTIABLE)
 
-## 1. NO NEW FACTS
+## NO NEW FACTS
 - Do NOT introduce new entities
 - Do NOT add technical details not present in input
 - Do NOT assume motivations or hidden context
 
-## 2. NO HALLUCINATED REASONING
+## NO HALLUCINATED REASONING
 - "Why it matters" must be directly inferable from input
-- If not inferable → write: "Impact is limited to reported scope of the article."
+- Do NOT speculate beyond what is written
 
-## 3. TITLE RULES
-- Must stay faithful to original meaning
-- You MAY improve clarity, simplify, reorder words, remove redundancy
-- You MUST NOT clickbait, emotional frame, or exaggerate
-- Use Telegram bold: *Title* (with asterisks)
-
-## 4. BULLET RULES
-- Max 3 bullets
-- Each bullet = one factual idea
-- No repetition
-- Use • for bullets
-
-## 5. UX IMPROVEMENT ALLOWED (SAFE OPERATIONS)
-You MAY: shorten sentences, improve readability, reorder for clarity, remove noise words, merge redundant phrases
-You MAY NOT: add new claims, infer beyond text, expand scope
-
-## 6. FORMATTING RULES (TELEGRAM-NATIVE)
-- Use *text* for bold (NOT backticks, NOT **text**)
-- Use • for bullets (NOT - or *)
-- Do NOT use ---, horizontal lines, or Markdown headings
-- Do NOT include the category or URL — they will be added automatically
+## QUALITY FILTER (SELF-CHECK)
+Reject or rewrite if:
+- too shallow
+- no implication
+- repetitive bullets
+- missing technical anchor
+- no clear "why it matters"
 
 ---
 
 # OBJECTIVE
 
-Transform structured news into:
-- readable
-- clean
-- Telegram-friendly
-- fully grounded
-- zero hallucination output
+Do NOT summarize news.
+Instead:
+👉 Extract meaning
+👉 Preserve technical depth
+👉 Improve readability
+👉 Add analytical value (ONLY from input content)
 
 Generate the post now:"""
 
@@ -122,15 +188,7 @@ Generate the post now:"""
 # ── Category Assignment (rule-based) ──────────────────────────────────────
 
 def assign_category(content: str) -> str:
-    """Assign category using deterministic keyword matching.
-
-    Decision tree:
-    - research: paper / benchmark / model training / dataset / experiment
-    - policy: regulation / law / ban / government / EU / policy
-    - industry: funding / acquisition / valuation / IPO / revenue / layoffs
-    - business: partnership / deal / contract / revenue / profit / CEO
-    - product: default (none of the above)
-    """
+    """Assign category using deterministic keyword matching."""
     content_lower = content.lower()
 
     for category, keywords in CATEGORY_RULES:
@@ -138,7 +196,30 @@ def assign_category(content: str) -> str:
             if keyword in content_lower:
                 return category
 
-    return "product"
+    return "AIModels"
+
+
+# ── Source Name Extraction ────────────────────────────────────────────────
+
+def extract_source_name(url: str | None) -> str:
+    """Extract friendly source name from URL."""
+    if not url:
+        return "منبع اصلی"
+    try:
+        domain = urlparse(url).netloc.lower()
+        # Remove www.
+        domain = domain.replace("www.", "")
+        # Check mapping
+        for key, name in SOURCE_NAMES.items():
+            if key in domain:
+                return name
+        # Fallback: capitalize domain without TLD
+        parts = domain.split(".")
+        if len(parts) >= 2:
+            return parts[-2].capitalize()
+        return domain
+    except Exception:
+        return "منبع اصلی"
 
 
 # ── LLM Post Generation ──────────────────────────────────────────────────
@@ -148,23 +229,28 @@ async def generate_post(
     content: str,
     url: str,
     category: str,
+    source_name: str,
     api_base: str,
     api_key: str,
     model: str,
 ) -> str:
-    """Generate a Telegram post for a single news item using LLM."""
+    """Generate a Persian Telegram post for a single news item using LLM."""
 
-    user_prompt = f"""Convert this AI news article into a Telegram post.
+    user_prompt = f"""Convert this AI news article into a Persian Telegram post.
 
 Title: {title}
 Content: {content}
+Category: {category}
+Source: {source_name}
 
-Remember:
-- Max 3 bullets (1 sentence each)
-- "Why it matters" — ONLY if directly inferable from content, otherwise use fallback
-- No hallucination, no speculation
-- Telegram formatting: *bold*, • bullets
+Rules:
+- Primary language: Persian
+- English only for technical terms
+- Title: Persian hook + English reference in parentheses
+- 2-4 bullets (Fact / Mechanism / Implication)
+- "Why it matters" must be grounded in content
 - Do NOT include category or URL — they will be added
+- Telegram formatting: *bold* for title, • for bullets
 
 Generate the post now:"""
 
@@ -175,7 +261,7 @@ Generate the post now:"""
             {"role": "user", "content": user_prompt},
         ],
         "temperature": 0.3,
-        "max_tokens": 500,
+        "max_tokens": 600,
     }
 
     headers = {
@@ -192,24 +278,21 @@ Generate the post now:"""
         resp.raise_for_status()
 
     data = resp.json()
-    raw = data["choices"][0]["message"]["content"].strip()
-
-    return raw
+    return data["choices"][0]["message"]["content"].strip()
 
 
 # ── Post Assembly ─────────────────────────────────────────────────────────
 
-def _assemble_post(llm_output: str, category: str, url: str) -> str:
-    """Assemble final post: LLM content + category tag + URL.
+def _assemble_post(llm_output: str, category: str, source_name: str, url: str) -> str:
+    """Assemble final post: LLM content + category + source.
 
-    Removes any category/URL the LLM might have added (safety).
+    Visual hierarchy: title → bullets → insight → category → source
     """
-    # Strip any category tag or URL the LLM might have hallucinated
+    # Strip any category/URL the LLM might have hallucinated
     lines = llm_output.strip().split("\n")
     clean_lines = []
     for line in lines:
         stripped = line.strip()
-        # Skip lines that look like category tags or URLs
         if stripped.startswith("#") and not stripped.startswith("🔍"):
             continue
         if stripped.startswith("🔗"):
@@ -218,11 +301,13 @@ def _assemble_post(llm_output: str, category: str, url: str) -> str:
             continue
         if stripped.startswith("Source:"):
             continue
+        if "مطالعه کامل" in stripped:
+            continue
         clean_lines.append(line)
 
     # Build final post — hierarchy: title → bullets → insight → category → source
     post_body = "\n".join(clean_lines).strip()
-    final_post = f"{post_body}\n\n#{category}\n🔗 {url}"
+    final_post = f"{post_body}\n\n#{category}\n📖 مطالعه کامل مقاله در {source_name}\n{url}"
 
     return final_post
 
@@ -240,15 +325,15 @@ async def generate_telegram_posts(
     Steps:
     1. Filter by confidence >= 0.70
     2. Assign category (rule-based)
-    3. Generate post content (LLM per item)
-    4. Assemble final post
+    3. Extract source name
+    4. Generate post content (LLM per item)
+    5. Assemble final post
 
     Returns list of formatted Telegram post strings.
     """
     posts = []
 
     for item in items:
-        # Skip low confidence
         confidence = item.get("confidence", 0)
         if confidence < CONFIDENCE_THRESHOLD:
             continue
@@ -257,27 +342,30 @@ async def generate_telegram_posts(
         content = item.get("content", "")
         url = item.get("url", "")
 
-        # Step 1: Category (rule-based)
+        # Category (rule-based)
         category = assign_category(content)
 
-        # Step 2: Generate post (LLM)
+        # Source name
+        source_name = extract_source_name(url)
+
+        # Generate post (LLM)
         try:
             llm_output = await generate_post(
                 title=title,
                 content=content,
                 url=url,
                 category=category,
+                source_name=source_name,
                 api_base=api_base,
                 api_key=api_key,
                 model=model,
             )
         except Exception as e:
-            # Skip items that fail
             print(f"  ✗ LLM error for '{title[:40]}': {e}")
             continue
 
-        # Step 3: Assemble final post
-        final_post = _assemble_post(llm_output, category, url)
+        # Assemble final post
+        final_post = _assemble_post(llm_output, category, source_name, url)
         posts.append(final_post)
 
     return posts
