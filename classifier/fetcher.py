@@ -8,7 +8,7 @@ from .models import Article
 
 async def fetch_rss(feed_url: str, limit: int = 10) -> list[Article]:
     """Fetch articles from an RSS/Atom feed."""
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy="http://127.0.0.1:10808/") as client:
         resp = await client.get(feed_url)
         resp.raise_for_status()
 
@@ -51,7 +51,7 @@ async def fetch_rss(feed_url: str, limit: int = 10) -> list[Article]:
 
 async def fetch_url(url: str) -> Article:
     """Fetch a single article from a URL."""
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy="http://127.0.0.1:10808/") as client:
         resp = await client.get(url)
         resp.raise_for_status()
 

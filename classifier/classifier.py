@@ -81,7 +81,7 @@ async def classify_article(
         "Authorization": f"Bearer {api_key}",
     }
 
-    async with httpx.AsyncClient(timeout=60, proxy="http://127.0.0.1:10808/") as client:
+    async with httpx.AsyncClient(timeout=60, proxy="http://127.0.0.1:10808/", verify=False) as client:
         resp = await client.post(
             f"{api_base}/chat/completions",
             json=payload,
