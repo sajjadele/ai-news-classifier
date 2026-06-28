@@ -24,6 +24,26 @@ def convert_to_telegram_html(text: str) -> str:
     return text
 
 
+def _split_message(text: str, max_len: int = 4096) -> list[str]:
+    """Split a long message into chunks respecting Telegram's 4096 char limit.
+    
+    Splits at double newline boundaries when possible.
+    """
+    if len(text) <= max_len:
+        return [text]
+    
+    chunks = []
+    while len(text) > max_len:
+        split_point = text[:max_len].rfind("\n\n")
+        if split_point == -1:
+            split_point = max_len
+        chunks.append(text[:split_point])
+        text = text[split_point:].strip()
+    if text:
+        chunks.append(text)
+    return chunks
+
+
 async def send_post(
     text: str,
     token: str,
@@ -43,6 +63,7 @@ async def send_post(
         "chat_id": channel,
         "text": html_text,
         "parse_mode": "HTML",
+        "disable_web_page_preview": True,
     }
     
     try:
@@ -51,8 +72,12 @@ async def send_post(
             proxy=proxy,
             verify=False,
         ) as client:
-            resp = await client.post(url, json=payload)
-            resp.raise_for_status()
+            # Telegram limit: 4096 chars. Split if needed.
+            chunks = _split_message(html_text, max_len=4096)
+            for chunk in chunks:
+                payload["text"] = chunk
+                resp = await client.post(url, json=payload)
+                resp.raise_for_status()
             return True
     except Exception as e:
         print(f"  ✗ Telegram error: {e}")

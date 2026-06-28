@@ -8,6 +8,7 @@ Converts cleaned AI news items into high-quality Persian Telegram posts.
 
 import json
 import re
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 import httpx
@@ -191,6 +192,35 @@ Instead:
 Generate the post now:"""
 
 
+# ── Time Display ─────────────────────────────────────────────────────────
+
+def _time_ago(published_at: str | None) -> str:
+    """Convert ISO datetime string to human-readable Persian time ago.
+    
+    Examples: "چند دقیقه پیش", "۳ ساعت پیش", "۲ روز پیش"
+    """
+    if not published_at:
+        return ""
+    try:
+        pub = datetime.fromisoformat(published_at)
+        if pub.tzinfo is None:
+            pub = pub.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        delta = now - pub
+        
+        if delta.days > 1:
+            return f"{delta.days} روز پیش"
+        elif delta.days == 1:
+            return "دیروز"
+        else:
+            hours = delta.seconds // 3600
+            if hours >= 1:
+                return f"{hours} ساعت پیش"
+            return "چند دقیقه پیش"
+    except Exception:
+        return ""
+
+
 # ── Category Assignment (rule-based) ──────────────────────────────────────
 
 def assign_category(content: str) -> str:
@@ -303,7 +333,7 @@ Generate the post now:"""
 
 # ── Post Assembly ─────────────────────────────────────────────────────────
 
-def _assemble_post(llm_output: str, category: str, source_name: str, url: str) -> str:
+def _assemble_post(llm_output: str, category: str, source_name: str, url: str, time_ago: str = "") -> str:
     """Assemble final post: LLM content + category + source.
 
     Visual hierarchy: title → bullets → insight → category → source
@@ -327,7 +357,11 @@ def _assemble_post(llm_output: str, category: str, source_name: str, url: str) -
 
     # Build final post — hierarchy: title → bullets → insight → category → source
     post_body = "\n".join(clean_lines).strip()
-    final_post = f"{post_body}\n\n#{category}\n📖 مطالعه کامل مقاله در {source_name}\n{url}"
+    
+    # Optional time line
+    time_line = f"\n🕐 {time_ago}" if time_ago else ""
+    
+    final_post = f"{post_body}{time_line}\n\n#{category}\n📖 مطالعه کامل مقاله در {source_name}\n{url}"
 
     return final_post
 
@@ -362,6 +396,7 @@ async def generate_telegram_posts(
         title = item.get("title", "")
         content = item.get("content", "")
         url = item.get("url", "")
+        published_at = item.get("published_at")
 
         # Category (rule-based)
         category = assign_category(content)
@@ -387,7 +422,8 @@ async def generate_telegram_posts(
             continue
 
         # Assemble final post
-        final_post = _assemble_post(llm_output, category, source_name, url)
+        time_ago = _time_ago(published_at)
+        final_post = _assemble_post(llm_output, category, source_name, url, time_ago)
         posts.append(final_post)
 
     return posts
