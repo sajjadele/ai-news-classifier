@@ -17,6 +17,7 @@ from classifier.fetcher import fetch_rss, fetch_url
 from classifier.classifier import classify_article
 from classifier.processor import process as phase2_process
 from classifier.generator import generate_telegram_posts, save_posts
+from classifier.publisher import publish_posts
 
 app = typer.Typer(help="AI News Classifier — filter AI-relevant articles from news feeds")
 console = Console()
@@ -43,6 +44,8 @@ def classify(
     process: bool = typer.Option(False, "--process", "-p", help="Run Phase 2 (dedup + noise removal)"),
     generate: bool = typer.Option(False, "--generate", "-g", help="Run Phase 3 (Telegram post generation)"),
     posts_file: str = typer.Option(None, "--posts-file", help="Save Telegram posts to .txt file"),
+    publish: bool = typer.Option(False, "--publish", help="Send posts to Telegram"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show posts without sending"),
 ):
     """Classify articles from an RSS feed or URL."""
     config = load_config()
@@ -56,13 +59,15 @@ def classify(
         console.print("[red]Error: No API key. Set in config.yaml or --api-key[/red]")
         raise typer.Exit(1)
 
-    asyncio.run(_run_pipeline(source, _api_base, _api_key, _model, _proxy, output, limit, process, generate, posts_file))
+    asyncio.run(_run_pipeline(source, _api_base, _api_key, _model, _proxy, output, limit, process, generate, posts_file, publish, dry_run, config))
 
 
 async def _run_pipeline(
     source: str, api_base: str, api_key: str, model: str, proxy: str | None,
     output: str | None, limit: int,
     run_phase2: bool, run_phase3: bool, posts_file: str | None,
+    publish: bool = False, dry_run: bool = False,
+    config: dict | None = None,
 ):
     """Full pipeline: Phase 1 → Phase 2 → Phase 3."""
 
@@ -85,6 +90,7 @@ async def _run_pipeline(
     console.print(f"[green]✓ Found {len(articles)} article(s)[/green]\n")
 
     classifications = []
+    failed_count = 0
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
         for i, article in enumerate(articles):
             task = progress.add_task(f"Classifying [{i+1}/{len(articles)}]: {article.title[:50]}...", total=None)
@@ -93,21 +99,29 @@ async def _run_pipeline(
                 classifications.append(result)
             except Exception as e:
                 console.print(f"  [red]✗ Error: {e}[/red]")
+                failed_count += 1
             progress.update(task, completed=True)
 
     _display_classifications(classifications)
 
     relevant_count = sum(1 for r in classifications if r.relevant)
     avg_conf = sum(r.confidence for r in classifications) / len(classifications) if classifications else 0
-    console.print(f"\n[bold]📊 Phase 1:[/bold] {relevant_count}/{len(classifications)} relevant | Avg confidence: {avg_conf:.2f}")
+    if failed_count > 0 and not classifications:
+        console.print(f"[red]⚠ All {failed_count} classification(s) failed. Check API key and endpoint.[/red]")
+    elif failed_count > 0:
+        console.print(f"[yellow]⚠ {failed_count} classification(s) failed. Results may be incomplete.[/yellow]")
+    console.print(f"\n[bold]📊 Phase 1:[/bold] {relevant_count}/{len(articles)} relevant | {len(classifications)} classified | Avg confidence: {avg_conf:.2f}")
 
     # ── Phase 2: Processing ────────────────────────────────────────────
     processed_data = None
     if run_phase2:
         console.print("\n[bold magenta]🔄 Phase 2: Processing...[/bold magenta]")
 
-        relevant_articles = [art for art, cls in zip(articles, classifications) if cls.relevant]
-        relevant_classifications = [cls for cls in classifications if cls.relevant]
+        if len(classifications) != len(articles):
+            console.print(f"[yellow]⚠ Mismatch: {len(classifications)} classifications for {len(articles)} articles. Using paired subset.[/yellow]")
+        paired = [(art, cls) for art, cls in zip(articles[:len(classifications)], classifications) if cls.relevant]
+        relevant_articles = [p[0] for p in paired]
+        relevant_classifications = [p[1] for p in paired]
 
         if not relevant_articles:
             console.print("[yellow]No relevant articles to process.[/yellow]")
@@ -120,7 +134,10 @@ async def _run_pipeline(
     posts = None
     if run_phase3:
         if processed_data is None:
-            console.print("[red]Error: --generate requires --process. Use both flags.[/red]")
+            if run_phase2:
+                console.print("[red]Error: No relevant articles to generate posts from.[/red]")
+            else:
+                console.print("[red]Error: --generate requires --process. Use both flags.[/red]")
             raise typer.Exit(1)
 
         console.print("\n[bold cyan]📝 Phase 3: Generating Telegram posts...[/bold cyan]")
@@ -134,13 +151,34 @@ async def _run_pipeline(
             save_posts(posts, posts_file)
             console.print(f"[green]💾 Posts saved to: {posts_file}[/green]")
 
+# ── Phase 4: Publish to Telegram ──────────────────────────────
+    if posts and (publish or dry_run):
+        _telegram_token = (config or {}).get("telegram_token", "")
+        _telegram_channel = (config or {}).get("telegram_channel", "")
+        
+        if not _telegram_token or not _telegram_channel:
+            console.print("[red]Error: telegram_token and telegram_channel must be set in config.yaml[/red]")
+        elif dry_run:
+            console.print("\n[bold yellow]🔍 Dry Run — پست‌ها ارسال نمی‌شوند:[/bold yellow]")
+            for i, post in enumerate(posts, 1):
+                console.print(f"\n[dim]─── Post {i} ───[/dim]")
+                console.print(post)
+        else:
+            console.print("\n[bold green]📤 Phase 4: Sending to Telegram...[/bold green]")
+            result = await publish_posts(
+                posts=posts,
+                token=_telegram_token,
+                channel=_telegram_channel,
+                proxy=proxy,
+            )
+            console.print(f"[bold]📤 Phase 4:[/bold] {result['sent']} sent, {result['failed']} failed")
     # ── Save JSON ──────────────────────────────────────────────────────
     if output:
         _save_results(classifications, output, processed_data)
 
     # ── Final Summary ──────────────────────────────────────────────────
     console.print("\n[bold green]═══ Pipeline Complete ═══[/bold green]")
-    console.print(f"  Phase 1: {relevant_count}/{len(classifications)} relevant articles")
+    console.print(f"  Phase 1: {relevant_count}/{len(articles)} relevant articles ({len(classifications)} classified)")
     if processed_data:
         console.print(f"  Phase 2: {len(processed_data)} cleaned items")
     if posts:

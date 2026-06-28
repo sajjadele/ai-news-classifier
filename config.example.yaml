@@ -20,3 +20,8 @@ feeds:
     url: "https://techcrunch.com/category/artificial-intelligence/feed/"
   - name: "The Verge AI"
     url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+
+# Telegram Bot (Phase 4 — optional, for --publish)
+# Get token from @BotFather, channel is your @channel or chat ID
+telegram_token: "YOUR_BOT_TOKEN_HERE"
+telegram_channel: "@your_channel"

@@ -174,8 +174,8 @@ def remove_noise(items: list[ProcessedItem]) -> list[ProcessedItem]:
 # ── 3. Title Normalization ────────────────────────────────────────────────
 
 def _count_emojis(text: str) -> int:
-    """Count emoji characters in text."""
-    return len(EMOJI_PATTERN.findall(text))
+    """Count individual emoji characters in text."""
+    return sum(len(m) for m in EMOJI_PATTERN.findall(text)) if text else 0
 
 
 def _remove_emojis(text: str) -> str:
