@@ -45,21 +45,31 @@ def classify(
     generate: bool = typer.Option(False, "--generate", "-g", help="Run Phase 3 (Telegram post generation)"),
     posts_file: str = typer.Option(None, "--posts-file", help="Save Telegram posts to .txt file"),
     publish: bool = typer.Option(False, "--publish", help="Send posts to Telegram"),
+    send: bool = typer.Option(False, "--send", "-s", help="Send posts to Telegram (alias for --publish)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show posts without sending"),
 ):
     """Classify articles from an RSS feed or URL."""
     config = load_config()
 
-    _api_base = api_base or config.get("api_base", "https://api.openai.com/v1")
     _api_key = api_key or config.get("api_key", "")
-    _model = model or config.get("model", "gpt-3.5-turbo")
-    _proxy = config.get("proxy", None)
-
     if not _api_key:
         console.print("[red]Error: No API key. Set in config.yaml or --api-key[/red]")
         raise typer.Exit(1)
 
-    asyncio.run(_run_pipeline(source, _api_base, _api_key, _model, _proxy, output, limit, process, generate, posts_file, publish, dry_run, config))
+    _api_base = api_base or config.get("api_base", "https://api.openai.com/v1")
+    _model = model or config.get("model", "gpt-3.5-turbo")
+    _proxy = config.get("proxy", None)
+
+    will_send = publish or send
+    if dry_run and will_send:
+        console.print("[red]Error: Cannot use --dry-run with --send or --publish. "
+                      "These flags are mutually exclusive.[/red]")
+        raise typer.Exit(1)
+
+    if dry_run:
+        console.print("[yellow]ℹ Dry-run mode: posts will be shown but NOT sent.[/yellow]")
+
+    asyncio.run(_run_pipeline(source, _api_base, _api_key, _model, _proxy, output, limit, process, generate, posts_file, will_send, dry_run, config))
 
 
 async def _run_pipeline(

@@ -1,7 +1,27 @@
 """Phase 4: Telegram publisher — sends generated posts to a channel."""
 
 import asyncio
+import re
 import httpx
+
+
+def convert_to_telegram_html(text: str) -> str:
+    """Convert LLM output (*bold* format) to Telegram HTML.
+    
+    Steps:
+    1. Escape HTML special chars (&, <, >)
+    2. Convert *bold* → <b>bold</b>
+    3. Leave everything else as-is (bullets, emojis, URLs)
+    """
+    # Step 1: Escape HTML
+    text = text.replace("&", "&amp;")
+    text = text.replace("<", "&lt;")
+    text = text.replace(">", "&gt;")
+
+    # Step 2: *bold* → <b>bold</b> (non-greedy, single line)
+    text = re.sub(r'\*([^*\n]+)\*', r'<b>\1</b>', text)
+
+    return text
 
 
 async def send_post(
@@ -12,14 +32,17 @@ async def send_post(
 ) -> bool:
     """Send a single post to Telegram channel.
     
+    Converts *bold* Markdown to HTML before sending.
     Returns True if successful, False otherwise.
     """
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    
+
+    html_text = convert_to_telegram_html(text)
+
     payload = {
         "chat_id": channel,
-        "text": text,
-        "parse_mode": "Markdown",
+        "text": html_text,
+        "parse_mode": "HTML",
     }
     
     try:
