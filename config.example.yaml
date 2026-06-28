@@ -10,6 +10,10 @@ api_key: "YOUR_API_KEY_HERE"
 # Model to use for classification
 model: "mistral-medium-3-5"
 
+# HTTP proxy (optional — set if you need a proxy for outbound requests)
+# Remove or leave empty if not needed
+proxy: "http://127.0.0.1:10808/"
+
 # Default RSS feeds to check
 feeds:
   - name: "TechCrunch AI"

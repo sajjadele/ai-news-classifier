@@ -50,16 +50,17 @@ def classify(
     _api_base = api_base or config.get("api_base", "https://api.openai.com/v1")
     _api_key = api_key or config.get("api_key", "")
     _model = model or config.get("model", "gpt-3.5-turbo")
+    _proxy = config.get("proxy", None)
 
     if not _api_key:
         console.print("[red]Error: No API key. Set in config.yaml or --api-key[/red]")
         raise typer.Exit(1)
 
-    asyncio.run(_run_pipeline(source, _api_base, _api_key, _model, output, limit, process, generate, posts_file))
+    asyncio.run(_run_pipeline(source, _api_base, _api_key, _model, _proxy, output, limit, process, generate, posts_file))
 
 
 async def _run_pipeline(
-    source: str, api_base: str, api_key: str, model: str,
+    source: str, api_base: str, api_key: str, model: str, proxy: str | None,
     output: str | None, limit: int,
     run_phase2: bool, run_phase3: bool, posts_file: str | None,
 ):
@@ -69,9 +70,9 @@ async def _run_pipeline(
     console.print(f"\n[bold blue]📥 Phase 1: Fetching from:[/bold blue] {source}")
 
     if "feed" in source or "rss" in source or source.endswith((".xml", ".rss", ".atom")):
-        articles = await fetch_rss(source, limit=limit)
+        articles = await fetch_rss(source, limit=limit, proxy=proxy)
     elif source.startswith("http"):
-        article = await fetch_url(source)
+        article = await fetch_url(source, proxy=proxy)
         articles = [article]
     else:
         console.print("[red]Error: Invalid source. Provide an RSS feed URL or article URL.[/red]")
@@ -88,7 +89,7 @@ async def _run_pipeline(
         for i, article in enumerate(articles):
             task = progress.add_task(f"Classifying [{i+1}/{len(articles)}]: {article.title[:50]}...", total=None)
             try:
-                result = await classify_article(article, api_base, api_key, model)
+                result = await classify_article(article, api_base, api_key, model, proxy=proxy)
                 classifications.append(result)
             except Exception as e:
                 console.print(f"  [red]✗ Error: {e}[/red]")
@@ -124,7 +125,7 @@ async def _run_pipeline(
 
         console.print("\n[bold cyan]📝 Phase 3: Generating Telegram posts...[/bold cyan]")
 
-        posts = await generate_telegram_posts(processed_data, api_base, api_key, model)
+        posts = await generate_telegram_posts(processed_data, api_base, api_key, model, proxy=proxy)
         _display_posts_preview(posts)
         console.print(f"[bold]📝 Phase 3:[/bold] {len(posts)} posts generated")
 

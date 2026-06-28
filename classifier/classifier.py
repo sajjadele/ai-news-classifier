@@ -52,6 +52,7 @@ async def classify_article(
     api_base: str,
     api_key: str,
     model: str = "mistral-medium-3-5",
+    proxy: str | None = None,
 ) -> ClassificationResult:
     """Classify a single article using an LLM."""
 
@@ -75,34 +76,47 @@ async def classify_article(
         "Authorization": f"Bearer {api_key}",
     }
 
-    async with httpx.AsyncClient(timeout=60, proxy="http://127.0.0.1:10808/", verify=False) as client:
-        resp = await client.post(
-            f"{api_base}/chat/completions",
-            json=payload,
-            headers=headers,
-        )
-        resp.raise_for_status()
+    MAX_RETRIES = 3
+    RETRY_DELAY = 2  # seconds
 
-    data = resp.json()
-    raw = data["choices"][0]["message"]["content"].strip()
+    for attempt in range(MAX_RETRIES):
+        try:
+            async with httpx.AsyncClient(timeout=60, proxy=proxy, verify=False) as client:
+                resp = await client.post(
+                    f"{api_base}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                raw = data["choices"][0]["message"]["content"].strip()
 
-    # Parse JSON from response (handle markdown code blocks)
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
+                # Parse JSON from response (handle markdown code blocks)
+                if raw.startswith("```"):
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                    raw = raw.strip()
 
-    try:
-        result = json.loads(raw)
-    except json.JSONDecodeError:
-        # Fallback if model doesn't return valid JSON
-        result = {"relevant": False, "confidence": 0.0, "reason": f"Parse error: {raw[:100]}"}
+                try:
+                    result = json.loads(raw)
+                except json.JSONDecodeError:
+                    # Fallback if model doesn't return valid JSON
+                    result = {"relevant": False, "confidence": 0.0, "reason": f"Parse error: {raw[:100]}"}
 
-    return ClassificationResult(
-        relevant=result.get("relevant", False),
-        confidence=float(result.get("confidence", 0.0)),
-        reason=result.get("reason", "No reason provided"),
-        article_title=article.title,
-        article_url=article.url,
-    )
+                return ClassificationResult(
+                    relevant=result.get("relevant", False),
+                    confidence=float(result.get("confidence", 0.0)),
+                    reason=result.get("reason", "No reason provided"),
+                    article_title=article.title,
+                    article_url=article.url,
+                )
+        except httpx.HTTPStatusError as e:
+            if attempt < MAX_RETRIES - 1:
+                import asyncio
+                await asyncio.sleep(RETRY_DELAY)
+                continue
+            raise
+
+    # Should never reach here, but just in case
+    raise RuntimeError("All retries failed")

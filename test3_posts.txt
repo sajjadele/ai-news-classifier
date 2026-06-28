@@ -1,53 +1,72 @@
-*Asian AI startups launch Mythos-like models as Anthropic’s export ban drags on*
+🧠 استارت‌آپ‌های آسیایی مدل‌های مشابه Mythos را عرضه کردند (Anthropic export ban drives Asian Mythos-like models)
 
-• New AI models in Asia offer Mythos-like capabilities.
-• These models avoid export ban concerns.
-• U.S. AI labs may not recover the Asian market.
+• استارت‌آپ‌های آسیایی مدل‌هایی با قابلیت‌های مشابه Mythos (Mythos-like models) عرضه کردند
+• محدودیت صادراتی Anthropic باعث شد این بازار بدون رقیب آمریکایی رشد کند
+• بازار عظیم آسیا ممکن است برای آزمایشگاه‌های آمریکایی AI برای همیشه از دست برود
 
-🔍 *Why it matters:*
-N/A
+🔍 چرا مهم است:
+Market implication — بازار آسیا به عنوان یکی از بزرگترین بازارهای AI ممکن است به‌طور دائم از دسترس شرکت‌های آمریکایی خارج شود
 
-#policy
-🔗 https://techcrunch.com/2026/06/27/asian-ai-startups-launch-mythos-like-models-as-anthropics-export-ban-drags-on/
-
-========================================
-
-*Trump Admin releases Anthropic Mythos to be used by more than 100 US companies, agencies*
-
-• Over 100 companies and government agencies are authorized to use Mythos 5.
-• Authorization extends to their non-American employees.
-• The release is attributed to the Trump administration.
-
-🔍 *Why it matters:*
-N/A
-
-#policy
-🔗 https://techcrunch.com/2026/06/26/trump-admin-releases-anthropic-mythos-to-be-used-by-more-than-100-us-companies-agencies/
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/27/asian-ai-startups-launch-mythos-like-models-as-anthropics-export-ban-drags-on/
 
 ========================================
 
-*OpenAI hires Uber India chief to lead India operations*
+🧠 دسترسی گسترده به Mythos 5 برای شرکت‌ها و آژانس‌های آمریکایی (Anthropic Mythos widespread deployment)
 
-• OpenAI has hired the former chief of Uber India.
-• The hire is part of OpenAI's push into India.
-• The expansion includes offices, partnerships, and hiring in the country.
+• بیش از ۱۰۰ شرکت و آژانس دولتی آمریکا مجوز استفاده از Mythos 5 را دریافت کردند
+• این مجوز شامل کارکنان غیرآمریکایی این سازمان‌ها نیز می‌شود
+• گسترش دسترسی به مدل‌های پیشرفته AI در بخش دولتی و خصوصی
 
-🔍 *Why it matters:*
-N/A
+🔍 چرا مهم است:
+Technical shift — استفاده گسترده از مدل‌های پیشرفته مانند Mythos 5 در سطح ملی، نشان‌دهنده تغییر استراتژیک در پذیرش AI در زیرساخت‌های حیاتی است
 
-#product
-🔗 https://techcrunch.com/2026/06/26/openai-poaches-uber-india-chief-to-lead-its-biggest-market-outside-the-u-s/
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/trump-admin-releases-anthropic-mythos-to-be-used-by-more-than-100-us-companies-agencies/
 
 ========================================
 
-*OpenAI developing custom AI inference chip with Broadcom*
+🧠 انتشار GPT-5.6 با محدودیت پس از درخواست دولت (OpenAI restricts GPT-5.6 rollout per government request)
 
-• Nvidia has dominated the AI chip market for years
-• OpenAI is building Jalapeño, a custom inference chip with Broadcom
-• Google, Apple, and SpaceX are also developing their own chips
+• OpenAI انتشار GPT-5.6 را پس از درخواست دولت محدود کرد
+• این محدودیت‌ها از طریق فرآیند دسترسی دولتی اعمال شده‌اند
+• OpenAI معتقد است این روش نباید به استاندارد بلندمدت تبدیل شود، زیرا ابزارهای برتر را از کاربران، توسعه‌دهندگان و شرکا محصور می‌کند
 
-🔍 *Why it matters:*
-N/A
+🔍 چرا مهم است:
+Strategic consequence — محدودیت‌های دولتی می‌تواند دسترسی جهانی به فناوری‌های پیشرفته را تحت تأثیر قرار دهد
 
-#product
-🔗 https://techcrunch.com/video/why-everyone-from-openai-to-spacex-is-building-their-own-chips-and-turning-up-the-heat-on-nvidia/
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/openai-limits-gpt-5-6-rollout-after-government-request-says-restrictions-shouldnt-be-the-norm/
+
+========================================
+
+🧠 مدیر سابق اوبر هند به رهبری بزرگ‌ترین بازار OpenAI خارج از آمریکا منصوب شد (OpenAI hires Uber India chief for India expansion)
+
+• OpenAI مدیر ارشد اوبر هند را برای رهبری بازار هند استخدام کرد
+• این استخدام بخشی از استراتژی گسترش دفاتر، شراکت‌ها و استخدام در هند است
+• هند به عنوان بزرگ‌ترین بازار خارج از آمریکا برای OpenAI در حال تبدیل شدن است
+
+🔍 چرا مهم است:
+Strategic consequence — تمرکز OpenAI بر هند نشان‌دهنده اولویت استراتژیک برای رشد در بازارهای کلیدی خارج از آمریکا است
+
+#BigTech
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/openai-poaches-uber-india-chief-to-lead-its-biggest-market-outside-the-u-s/
+
+========================================
+
+🧠 پایان انحصار Nvidia در تراشه‌های هوش مصنوعی (Custom AI Chips Shift)
+
+• OpenAI تراشه سفارشی Jalapeño (با همکاری Broadcom) را برای استنتاج معرفی کرد
+• شرکت‌هایی مانند Google، Apple و SpaceX نیز در حال توسعه تراشه‌های اختصاصی برای کاهش وابستگی به یک تامین‌کننده هستند
+• این حرکت خطر تک‌تامینی (single-supplier risk) را در زنجیره تامین AI کاهش می‌دهد
+
+🔍 چرا مهم است:
+Technical shift — وابستگی مطلق به Nvidia در حال جایگزیری با معماری‌های سفارشی و متنوع‌تر است
+
+#AIHardware
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/video/why-everyone-from-openai-to-spacex-is-building-their-own-chips-and-turning-up-the-heat-on-nvidia/

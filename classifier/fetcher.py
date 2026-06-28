@@ -6,9 +6,9 @@ from datetime import datetime
 from .models import Article
 
 
-async def fetch_rss(feed_url: str, limit: int = 10) -> list[Article]:
+async def fetch_rss(feed_url: str, limit: int = 10, proxy: str | None = None) -> list[Article]:
     """Fetch articles from an RSS/Atom feed."""
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy="http://127.0.0.1:10808/") as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy=proxy) as client:
         resp = await client.get(feed_url)
         resp.raise_for_status()
 
@@ -49,9 +49,9 @@ async def fetch_rss(feed_url: str, limit: int = 10) -> list[Article]:
     return articles
 
 
-async def fetch_url(url: str) -> Article:
+async def fetch_url(url: str, proxy: str | None = None) -> Article:
     """Fetch a single article from a URL."""
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy="http://127.0.0.1:10808/") as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True, proxy=proxy) as client:
         resp = await client.get(url)
         resp.raise_for_status()
 
@@ -74,10 +74,10 @@ async def fetch_url(url: str) -> Article:
     )
 
 
-async def fetch_multiple_urls(urls: list[str]) -> list[Article]:
+async def fetch_multiple_urls(urls: list[str], proxy: str | None = None) -> list[Article]:
     """Fetch multiple URLs concurrently."""
     import asyncio
-    tasks = [fetch_url(url) for url in urls]
+    tasks = [fetch_url(url, proxy=proxy) for url in urls]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     articles = []
     for r in results:

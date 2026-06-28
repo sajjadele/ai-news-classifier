@@ -83,7 +83,8 @@ You do NOT simplify knowledge. You preserve technical depth while improving read
 
 For each item, output EXACTLY this format:
 
-🧠 <Persian hook title> (<English compressed technical title>)
+*<Persian translated title — bold, natural, human-readable>*
+(<English original compressed title>)
 
 • <Bullet 1: Fact — what happened>
 • <Bullet 2: Mechanism — how it happened>
@@ -100,20 +101,21 @@ For each item, output EXACTLY this format:
 
 # LANGUAGE RULES
 
-- Primary language: Persian
-- English allowed ONLY for: technical terms, product names, model names (GPT-5, Claude, etc.)
-- Format: Term (English) → Persian explanation optional
-- Example: Large Language Model (مدل زبانی بزرگ)
+- Title: Persian translation as main title (bold with *), original English title below in parentheses
+- Bullet points: Persian, keep ALL technical terms in English (model names, company names, technical concepts like LLM, inference, fine-tuning, benchmark, etc.)
+- Why it matters: Persian
+- Category tags and URL: unchanged
 
 ---
 
 # TITLE RULES
 
-Format: 🧠 <Persian natural hook> (<English compressed technical reference>)
-- Persian part = natural, human-readable hook
-- English part = compressed technical reference
-- No full translation
-- No excessive English sentence
+Format:
+*<Persian translated title — bold>*
+(<English original compressed title>)
+
+- Persian part = natural, human-readable translation (bold with *)
+- English part = original English title, compressed (in parentheses on next line)
 - No clickbait, no exaggeration
 
 ---
@@ -237,6 +239,7 @@ async def generate_post(
     api_base: str,
     api_key: str,
     model: str,
+    proxy: str | None = None,
 ) -> str:
     """Generate a Persian Telegram post for a single news item using LLM."""
 
@@ -273,16 +276,29 @@ Generate the post now:"""
         "Authorization": f"Bearer {api_key}",
     }
 
-    async with httpx.AsyncClient(timeout=60, proxy="http://127.0.0.1:10808/", verify=False) as client:
-        resp = await client.post(
-            f"{api_base}/chat/completions",
-            json=payload,
-            headers=headers,
-        )
-        resp.raise_for_status()
+    MAX_RETRIES = 3
+    RETRY_DELAY = 2  # seconds
 
-    data = resp.json()
-    return data["choices"][0]["message"]["content"].strip()
+    for attempt in range(MAX_RETRIES):
+        try:
+            async with httpx.AsyncClient(timeout=60, proxy=proxy, verify=False) as client:
+                resp = await client.post(
+                    f"{api_base}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+        except httpx.HTTPStatusError as e:
+            if attempt < MAX_RETRIES - 1:
+                import asyncio
+                await asyncio.sleep(RETRY_DELAY)
+                continue
+            raise
+
+    # Should never reach here, but just in case
+    raise RuntimeError("All retries failed")
 
 
 # ── Post Assembly ─────────────────────────────────────────────────────────
@@ -323,6 +339,7 @@ async def generate_telegram_posts(
     api_base: str,
     api_key: str,
     model: str,
+    proxy: str | None = None,
 ) -> list[str]:
     """Generate Telegram posts for all items.
 
@@ -363,6 +380,7 @@ async def generate_telegram_posts(
                 api_base=api_base,
                 api_key=api_key,
                 model=model,
+                proxy=proxy,
             )
         except Exception as e:
             print(f"  ✗ LLM error for '{title[:40]}': {e}")
