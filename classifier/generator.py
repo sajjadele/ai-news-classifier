@@ -71,125 +71,63 @@ CATEGORY_RULES: list[tuple[str, list[str]]] = [
     ]),
 ]
 
-# LLM system prompt — Persian, production-grade, no hallucination
-SYSTEM_PROMPT = """You are a technical news editor and content strategist for a Persian Telegram AI News channel.
+SYSTEM_PROMPT = """You are a technical content writer for a Persian Telegram channel about AI news.
 
-Your job is to convert structured AI news data into high-quality Persian Telegram posts.
+Your job is to convert a single news article into a Telegram post in Persian using HTML formatting.
 
-You do NOT simplify knowledge. You preserve technical depth while improving readability.
+STRICT RULES:
+- Write in Persian. Keep ALL technical terms, model names, and company names in English.
+- You MUST NOT add any information not explicitly present in the input content.
+- Use Telegram HTML formatting ONLY: <b>bold</b>, <i>italic</i>, <blockquote>...</blockquote>, <a href="URL">text</a>
+- Never use Markdown (* ** _ `). Never use - or * for bullets. Always use • character.
 
----
+OUTPUT FORMAT (follow exactly, no deviation):
 
-# OUTPUT FORMAT (STRICT)
+<b>[Persian title — accurate, no clickbait, no emojis]</b>
 
-For each item, output EXACTLY this format:
+<blockquote>
+- [Key point 1 in Persian, technical terms in English]
+- [Key point 2 in Persian, technical terms in English]
+- [Key point 3 in Persian, technical terms in English]
+</blockquote>
 
-*<Persian translated title — bold, natural, human-readable>*
-(<English original compressed title>)
+💡 <i>تحلیل: [1 sentence — model's analysis of significance. Clearly the model's perspective.]</i>
 
-• <Bullet 1: Fact — what happened>
-• <Bullet 2: Mechanism — how it happened>
-• <Bullet 3: Implication — why it matters>
+#[category]  #[entity1]  #[entity2]
 
-🔍 چرا مهم است:
-<One of: market implication / technical shift / strategic consequence — MUST be directly grounded in content>
+🕐 [X روز پیش | Source name]
+📖 <a href="[EXACT_URL_FROM_INPUT]">مطالعه کامل خبر</a>
 
-#<category will be provided>
-📖 مطالعه کامل مقاله در <source name will be provided>
-<url will be provided>
+➖➖➖
+📢 برای اطلاع از آخرین اخبار هوش مصنوعی کانال ما را دنبال کنید
+@Ai_daily_news_fa
 
----
+HASHTAG RULES:
+- All hashtags on ONE line, separated by two spaces.
+- Always include ONE category hashtag:
+  #پژوهش (paper, benchmark, dataset, experiment)
+  #سیاست (regulation, law, ban, government, EU)
+  #صنعت (funding, acquisition, valuation, IPO, layoffs)
+  #محصول (release, launch, API, update — default)
+- Add entity hashtags for mentioned companies/topics:
+  #OpenAI #Anthropic #Google #Meta #Microsoft #Apple #Nvidia
+  #LLM #AGI #Agents #ImageAI #HardwareAI
+- Maximum 4 hashtags total.
 
-# LANGUAGE RULES
+URL RULES:
+- Use the EXACT url from the input. Do not modify or shorten it.
+- Place it inside <a href="URL">مطالعه کامل خبر</a>
 
-- Title: Persian translation as main title (bold with *), original English title below in parentheses
-- Bullet points: Persian, keep ALL technical terms in English (model names, company names, technical concepts like LLM, inference, fine-tuning, benchmark, etc.)
-- Why it matters: Persian
-- Category tags and URL: unchanged
+DAYS AGO RULES:
+- Calculate from published_at if available.
+- Format: X روز پیش (e.g. ۱ روز پیش, ۲ روز پیش)
+- If published today: امروز
+- If published_at is None: write: تازه منتشر شده
 
----
-
-# TITLE RULES
-
-Format:
-*<Persian translated title — bold>*
-(<English original compressed title>)
-
-- Persian part = natural, human-readable translation (bold with *)
-- English part = original English title, compressed (in parentheses on next line)
-- No clickbait, no exaggeration
-
----
-
-# BULLET RULES
-
-• 2–4 bullets max
-• Each bullet = information-dense, ONE purpose:
-  - Fact (what happened)
-  - Mechanism (how it happened)
-  - Implication (why it matters)
-❌ Forbidden: generic statements, repetition of title, vague wording
-
----
-
-# WHY IT MATTERS RULES
-
-Must NOT be generic.
-Must be one of:
-- Market implication (e.g. "بازار عظیم آسیا برای آمریکاییها از دست میرود")
-- Technical shift (e.g. "جابجایی از AI مبتنی بر مدل به AI مبتنی بر زیرساخت")
-- Strategic consequence (e.g. "فشار تنظیمکنندهها استراتژی استقرار را تغییر میدهد")
-
-MUST include the actual explanation, NOT just the label.
-Example: ✅ "Strategic consequence — بازار آسیا ممکن است..."
-Example: ❌ "Strategic consequence" (فقط لیبل بدون توضیح)
-
-MUST be directly inferable from input content.
-If not inferable → write based on what IS in the content (minimal, factual).
-❌ Forbidden: "Impact is limited...", empty or neutral statements
-
----
-
-# STYLE CONSTRAINTS
-
-- No exaggeration
-- No clickbait tone
-- No emotional language
-- No emojis except: 🧠 (title), 🔍 (why it matters), 📖 (source)
-
----
-
-# HARD CONSTRAINTS (NON-NEGOTIABLE)
-
-## NO NEW FACTS
-- Do NOT introduce new entities
-- Do NOT add technical details not present in input
-- Do NOT assume motivations or hidden context
-
-## NO HALLUCINATED REASONING
-- "Why it matters" must be directly inferable from input
-- Do NOT speculate beyond what is written
-
-## QUALITY FILTER (SELF-CHECK)
-Reject or rewrite if:
-- too shallow
-- no implication
-- repetitive bullets
-- missing technical anchor
-- no clear "why it matters"
-
----
-
-# OBJECTIVE
-
-Do NOT summarize news.
-Instead:
-👉 Extract meaning
-👉 Preserve technical depth
-👉 Improve readability
-👉 Add analytical value (ONLY from input content)
-
-Generate the post now:"""
+ANALYSIS RULES:
+- تحلیل must be 1 sentence maximum.
+- It is the model's reasoning, not a stated fact.
+- Never fabricate facts. Base analysis only on article content."""
 
 
 # ── Time Display ─────────────────────────────────────────────────────────
@@ -264,11 +202,11 @@ async def generate_post(
     title: str,
     content: str,
     url: str,
-    category: str,
-    source_name: str,
-    api_base: str,
-    api_key: str,
-    model: str,
+    source: str,
+    published_at: str | None = None,
+    api_base: str | None = None,
+    api_key: str | None = None,
+    model: str | None = None,
     proxy: str | None = None,
 ) -> str:
     """Generate a Persian Telegram post for a single news item using LLM."""
@@ -277,18 +215,11 @@ async def generate_post(
 
 Title: {title}
 Content: {content}
-Category: {category}
-Source: {source_name}
+URL: {url}
+Source: {source}
+Published: {published_at}
 
-Rules:
-- Primary language: Persian
-- English only for technical terms
-- Title: Persian hook + English reference in parentheses
-- 2-4 bullets (Fact / Mechanism / Implication)
-- "Why it matters" must be grounded in content
-- Do NOT include category or URL — they will be added
-- Telegram formatting: *bold* for title, • for bullets
-
+Follow the exact output format. Use the exact URL provided. Calculate days ago from published date.
 Generate the post now:"""
 
     payload = {
@@ -297,7 +228,7 @@ Generate the post now:"""
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
-        "temperature": 0.3,
+        "temperature": 0.5,
         "max_tokens": 600,
     }
 
@@ -333,37 +264,9 @@ Generate the post now:"""
 
 # ── Post Assembly ─────────────────────────────────────────────────────────
 
-def _assemble_post(llm_output: str, category: str, source_name: str, url: str, time_ago: str = "") -> str:
-    """Assemble final post: LLM content + category + source.
-
-    Visual hierarchy: title → bullets → insight → category → source
-    """
-    # Strip any category/URL the LLM might have hallucinated
-    lines = llm_output.strip().split("\n")
-    clean_lines = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("#") and not stripped.startswith("🔍"):
-            continue
-        if stripped.startswith("🔗"):
-            continue
-        if stripped.startswith("http"):
-            continue
-        if stripped.startswith("Source:"):
-            continue
-        if "مطالعه کامل" in stripped:
-            continue
-        clean_lines.append(line)
-
-    # Build final post — hierarchy: title → bullets → insight → category → source
-    post_body = "\n".join(clean_lines).strip()
-    
-    # Optional time line
-    time_line = f"\n🕐 {time_ago}" if time_ago else ""
-    
-    final_post = f"{post_body}{time_line}\n\n#{category}\n📖 مطالعه کامل مقاله در {source_name}\n{url}"
-
-    return final_post
+def _assemble_post(llm_output: str, category: str, url: str) -> str:
+    """Assemble final post. Pass-through — LLM generates the complete post."""
+    return llm_output.strip()
 
 
 # ── Main Pipeline ─────────────────────────────────────────────────────────
@@ -389,6 +292,10 @@ async def generate_telegram_posts(
     posts = []
 
     for item in items:
+        if not item.get("relevant", False):
+            continue
+        if item.get("error"):
+            continue
         confidence = item.get("confidence", 0)
         if confidence < CONFIDENCE_THRESHOLD:
             continue
@@ -398,20 +305,17 @@ async def generate_telegram_posts(
         url = item.get("url", "")
         published_at = item.get("published_at")
 
-        # Category (rule-based)
-        category = assign_category(content)
-
         # Source name
         source_name = extract_source_name(url)
 
-        # Generate post (LLM)
+        # Generate post (LLM) — the LLM handles category, hashtags, and timestamp
         try:
             llm_output = await generate_post(
                 title=title,
                 content=content,
                 url=url,
-                category=category,
-                source_name=source_name,
+                source=source_name,
+                published_at=published_at,
                 api_base=api_base,
                 api_key=api_key,
                 model=model,
@@ -421,9 +325,8 @@ async def generate_telegram_posts(
             print(f"  ✗ LLM error for '{title[:40]}': {e}")
             continue
 
-        # Assemble final post
-        time_ago = _time_ago(published_at)
-        final_post = _assemble_post(llm_output, category, source_name, url, time_ago)
+        # Assemble final post (pass-through)
+        final_post = _assemble_post(llm_output, category="", url=url)
         posts.append(final_post)
 
     return posts

@@ -100,38 +100,45 @@ async def _run_pipeline(
     console.print(f"[green]✓ Found {len(articles)} article(s)[/green]\n")
 
     classifications = []
-    failed_count = 0
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
         for i, article in enumerate(articles):
             task = progress.add_task(f"Classifying [{i+1}/{len(articles)}]: {article.title[:50]}...", total=None)
-            try:
-                result = await classify_article(article, api_base, api_key, model, proxy=proxy)
-                classifications.append(result)
-            except Exception as e:
-                console.print(f"  [red]✗ Error: {e}[/red]")
-                failed_count += 1
+            result = await classify_article(article, i, api_base, api_key, model, proxy=proxy)
+            classifications.append(result)
+            if result.error:
+                console.print(f"  [red]✗ Error: {result.error}[/red]")
             progress.update(task, completed=True)
 
     _display_classifications(classifications)
 
     relevant_count = sum(1 for r in classifications if r.relevant)
+    failed_count = sum(1 for c in classifications if c.error)
     avg_conf = sum(r.confidence for r in classifications) / len(classifications) if classifications else 0
-    if failed_count > 0 and not classifications:
+    if failed_count == len(classifications):
         console.print(f"[red]⚠ All {failed_count} classification(s) failed. Check API key and endpoint.[/red]")
     elif failed_count > 0:
         console.print(f"[yellow]⚠ {failed_count} classification(s) failed. Results may be incomplete.[/yellow]")
-    console.print(f"\n[bold]📊 Phase 1:[/bold] {relevant_count}/{len(articles)} relevant | {len(classifications)} classified | Avg confidence: {avg_conf:.2f}")
+    console.print(f"\n[bold]📊 Phase 1:[/bold] {relevant_count}/{len(articles)} relevant | {len(classifications)} classified | {failed_count} failed | Avg confidence: {avg_conf:.2f}")
 
     # ── Phase 2: Processing ────────────────────────────────────────────
     processed_data = None
     if run_phase2:
         console.print("\n[bold magenta]🔄 Phase 2: Processing...[/bold magenta]")
 
-        if len(classifications) != len(articles):
-            console.print(f"[yellow]⚠ Mismatch: {len(classifications)} classifications for {len(articles)} articles. Using paired subset.[/yellow]")
-        paired = [(art, cls) for art, cls in zip(articles[:len(classifications)], classifications) if cls.relevant]
-        relevant_articles = [p[0] for p in paired]
-        relevant_classifications = [p[1] for p in paired]
+        assert len(classifications) == len(articles), \
+            f"Phase 1 broken: {len(classifications)} classifications for {len(articles)} articles"
+        assert all(c.article_id is not None for c in classifications), \
+            "Phase 1 broken: classification missing article_id"
+
+        relevant_articles = []
+        relevant_classifications = []
+        for art, cls in zip(articles, classifications):
+            if cls.relevant and cls.error is None:
+                relevant_articles.append(art)
+                relevant_classifications.append(cls)
+
+        assert all(cls.relevant and cls.error is None for cls in relevant_classifications), \
+            "No rejected article may enter Phase 2."
 
         if not relevant_articles:
             console.print("[yellow]No relevant articles to process.[/yellow]")
@@ -151,6 +158,9 @@ async def _run_pipeline(
             raise typer.Exit(1)
 
         console.print("\n[bold cyan]📝 Phase 3: Generating Telegram posts...[/bold cyan]")
+
+        assert all(item.get("relevant", False) for item in processed_data), \
+            "Every generated post must correspond to a Relevant == YES article."
 
         posts = await generate_telegram_posts(processed_data, api_base, api_key, model, proxy=proxy)
         _display_posts_preview(posts)

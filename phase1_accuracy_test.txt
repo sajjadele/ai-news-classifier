@@ -1,0 +1,65 @@
+*مدیر ارشد Vision Pro اپل به OpenAI می‌پیوندد*
+(Apple Vision Pro exec is reportedly leaving for OpenAI)
+
+• Paul Meade، معاون اپل و مسئول Vision Pro، شرکت را ترک می‌کند
+• مقصد او تیم سخت‌افزار OpenAI است
+• انتقال تجربه رهبری در سخت‌افزار AR/VR به اکوسیستم OpenAI
+
+🔍 چرا مهم است:
+Technical shift — انتقال تخصص سخت‌افزاری اپل به رقیب کلیدی در اکوسیستم AI
+🕐 دیروز
+
+#AIHardware
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/27/apple-vision-pro-exec-is-reportedly-leaving-for-openai/
+
+========================================
+
+*بنیانگذار سالم‌ترین اتاق به سرطان مبتلا شد. او چگونه با هوش مصنوعی مبارزه کرد*
+(Here’s how he used AI to fight back)
+
+• Connor Christou تمام داده‌های مربوط به رژیم خود — نتایج آزمایش خون، داده‌های اسکن، خروجی wearable، و یادداشت‌های روزنامه — را به Claude وارد کرد
+• Claude با تحلیل یکپارچه این داده‌ها، الگوهای پنهان و راهکارهای شخصی‌سازی شده برای مبارزه با بیماری ارائه داد
+• این رویکرد نشان می‌دهد چگونه AI می‌تواند به عنوان یک ابزار قدرتمند برای تصمیم‌گیری پزشکی شخصی استفاده شود
+
+🔍 چرا مهم است:
+Technical shift — استفاده از LLM برای تحلیل داده‌های پزشکی چندمنبعه و ارائه بینش‌های عملی، گامی به سوی پزشکی شخصی‌سازی شده با هوش مصنوعی است
+🕐 دیروز
+
+#AIHardware
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/27/the-fittest-founder-in-the-room-got-cancer-heres-how-he-used-ai-to-fight-back/
+
+========================================
+
+*OpenAI انتشار GPT-5.6 را پس از درخواست دولت محدود کرد*
+(OpenAI limits GPT-5.6 rollout after government request)
+
+• OpenAI انتشار GPT-5.6 را به دلیل درخواست دولت محدود کرده است
+• این شرکت اعلام کرد که چنین فرآیند دسترسی دولتی نباید به استاندارد بلندمدت تبدیل شود
+• محدودیت‌ها مانع دسترسی کاربران، توسعه‌دهندگان، کسب‌وکارها، مدافعان سایبری و شرکای جهانی به ابزارهای برتر می‌شود
+
+🔍 چرا مهم است:
+Technical shift — محدودیت‌های دولتی می‌تواند دسترسی به مدل‌های پیشرفته را برای اکوسیستم گسترده AI با مشکل مواجه کند
+🕐 2 روز پیش
+
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/openai-limits-gpt-5-6-rollout-after-government-request-says-restrictions-shouldnt-be-the-norm/
+
+========================================
+
+*OpenAI مدیر ارشد Uber هند را برای رهبری بزرگترین بازار خود خارج از آمریکا استخدام کرد*
+(OpenAI poaches Uber India chief to lead its biggest market outside the US)
+
+• OpenAI مدیر ارشد Uber هند را برای رهبری بازار هند استخدام کرد
+• این استخدام بخشی از استراتژی OpenAI برای توسعه دفاتر، شراکت‌ها و استخدام در هند است
+• هند به عنوان بزرگترین بازار خارج از آمریکا برای OpenAI در حال تبدیل شدن است
+
+🔍 چرا مهم است:
+Market implication — گسترش حضور OpenAI در هند می‌تواند رقابت در بازار هوش مصنوعی آسیا را تشدید کند
+🕐 2 روز پیش
+
+#BigTech
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/openai-poaches-uber-india-chief-to-lead-its-biggest-market-outside-the-u-s/

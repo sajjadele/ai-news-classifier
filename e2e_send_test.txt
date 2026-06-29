@@ -1,0 +1,48 @@
+*استارت‌آپ‌های آسیایی مدل‌های مشابه Mythos را معرفی کردند در حالی که ممنوعیت صادراتی Anthropic ادامه دارد*
+(Asian AI startups launch Mythos-like models as Anthropic’s export ban drags on)
+
+• استارت‌آپ‌های آسیایی مدل‌های جدیدی با قابلیت‌های مشابه Mythos عرضه کردند
+• این مدل‌ها بدون نگرانی از ممنوعیت صادراتی قابل دسترسی هستند
+• بازار عظیم آسیا ممکن است برای آزمایشگاه‌های آمریکایی AI برای همیشه از دست برود
+
+🔍 چرا مهم است:
+Market implication — بازار عظیم آسیا ممکن است برای آزمایشگاه‌های آمریکایی AI برای همیشه از دست برود
+🕐 دیروز
+
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/27/asian-ai-startups-launch-mythos-like-models-as-anthropics-export-ban-drags-on/
+
+========================================
+
+*اداره ترامپ Mythos 5 را برای بیش از ۱۰۰ شرکت و آژانس آمریکایی آزاد کرد*
+(Trump Admin releases Anthropic Mythos)
+
+• بیش از ۱۰۰ شرکت و آژانس دولتی آمریکا مجوز استفاده از Mythos 5 را دریافت کردند
+• این مجوز شامل کارکنان غیرآمریکایی این سازمان‌ها نیز می‌شود
+• دسترسی گسترده‌تر به Mythos 5 می‌تواند استفاده از LLMهای پیشرفته را در بخش‌های مختلف تسریع کند
+
+🔍 چرا مهم است:
+Technical shift — گسترش دسترسی به مدل‌های پیشرفته مانند Mythos 5 می‌تواند سرعت پذیرش AI در صنایع و دولت را افزایش دهد
+🕐 2 روز پیش
+
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/trump-admin-releases-anthropic-mythos-to-be-used-by-more-than-100-us-companies-agencies/
+
+========================================
+
+*OpenAI انتشار GPT-5.6 را پس از درخواست دولت محدود کرد*
+(OpenAI limits GPT-5.6 rollout after government request)
+
+• OpenAI انتشار GPT-5.6 را به دلیل درخواست دولت متوقف یا محدود کرده است
+• این شرکت اعلام کرد که چنین فرآیند دسترسی دولتی نباید به استاندارد بلندمدت تبدیل شود
+• محدودیت‌ها دسترسی به ابزارهای پیشرفته را برای کاربران، توسعه‌دهندگان، کسب‌وکارها، مدافعان سایبری و شرکای جهانی دشوار می‌کند
+
+🔍 چرا مهم است:
+Technical shift — فرآیندهای دسترسی دولتی می‌توانند نوآوری و دسترسی به فناوری‌های پیشرفته را کند یا محدود کنند
+🕐 2 روز پیش
+
+#AIPolicy
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/2026/06/26/openai-limits-gpt-5-6-rollout-after-government-request-says-restrictions-shouldnt-be-the-norm/

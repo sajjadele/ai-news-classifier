@@ -21,6 +21,8 @@ class ClassificationResult(BaseModel):
     reason: str = Field(description="Short technical justification")
     article_title: str = Field(description="Original article title")
     article_url: Optional[str] = None
+    article_id: Optional[int] = None
+    error: Optional[str] = None
 
 
 class RunSummary(BaseModel):

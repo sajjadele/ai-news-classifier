@@ -65,6 +65,8 @@ class ProcessedItem:
             "source": self.article.source,
             "published_at": self.article.published_at.isoformat() if self.article.published_at else None,
             "confidence": self.classification.confidence,
+            "relevant": self.classification.relevant,
+            "error": self.classification.error,
         }
 
 

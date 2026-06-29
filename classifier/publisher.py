@@ -57,13 +57,14 @@ async def send_post(
     """
     url = f"https://api.telegram.org/bot{token}/sendMessage"
 
-    html_text = convert_to_telegram_html(text)
+    # LLM already outputs Telegram HTML — no conversion needed.
+    # Do NOT escape HTML here; it would destroy the tags.
 
     payload = {
         "chat_id": channel,
-        "text": html_text,
+        "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True,
+        "disable_web_page_preview": False,
     }
     
     try:
@@ -73,7 +74,7 @@ async def send_post(
             verify=False,
         ) as client:
             # Telegram limit: 4096 chars. Split if needed.
-            chunks = _split_message(html_text, max_len=4096)
+            chunks = _split_message(text, max_len=4096)
             for chunk in chunks:
                 payload["text"] = chunk
                 resp = await client.post(url, json=payload)

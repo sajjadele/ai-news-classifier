@@ -118,74 +118,85 @@ Reason examples:
 
 async def classify_article(
     article: Article,
+    article_id: int,
     api_base: str,
     api_key: str,
     model: str = "mistral-medium-3-5",
     proxy: str | None = None,
 ) -> ClassificationResult:
-    """Classify a single article using an LLM."""
+    """Classify a single article using an LLM. Safe wrapper — never raises."""
 
-    user_prompt = USER_PROMPT_TEMPLATE.format(
-        title=article.title,
-        content=article.content[:2000],  # Safety cap
-    )
+    try:
+        user_prompt = USER_PROMPT_TEMPLATE.format(
+            title=article.title,
+            content=article.content[:2000],
+        )
 
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.0,
-        "max_tokens": 200,
-    }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.0,
+            "max_tokens": 200,
+        }
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-    }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
 
-    MAX_RETRIES = 3
-    RETRY_DELAY = 2  # seconds
+        MAX_RETRIES = 3
+        RETRY_DELAY = 2
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            async with httpx.AsyncClient(timeout=60, proxy=proxy, verify=False) as client:
-                resp = await client.post(
-                    f"{api_base}/chat/completions",
-                    json=payload,
-                    headers=headers,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                raw = data["choices"][0]["message"]["content"].strip()
+        for attempt in range(MAX_RETRIES):
+            try:
+                async with httpx.AsyncClient(timeout=60, proxy=proxy, verify=False) as client:
+                    resp = await client.post(
+                        f"{api_base}/chat/completions",
+                        json=payload,
+                        headers=headers,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                    raw = data["choices"][0]["message"]["content"].strip()
 
-                # Parse JSON from response (handle markdown code blocks)
-                if raw.startswith("```"):
-                    raw = raw.split("```")[1]
-                    if raw.startswith("json"):
-                        raw = raw[4:]
-                    raw = raw.strip()
+                    if raw.startswith("```"):
+                        raw = raw.split("```")[1]
+                        if raw.startswith("json"):
+                            raw = raw[4:]
+                        raw = raw.strip()
 
-                try:
-                    result = json.loads(raw)
-                except json.JSONDecodeError:
-                    # Fallback if model doesn't return valid JSON
-                    result = {"relevant": False, "confidence": 0.0, "reason": f"Parse error: {raw[:100]}"}
+                    try:
+                        result = json.loads(raw)
+                    except json.JSONDecodeError:
+                        result = {"relevant": False, "confidence": 0.0, "reason": f"Parse error: {raw[:100]}"}
 
-                return ClassificationResult(
-                    relevant=result.get("relevant", False),
-                    confidence=float(result.get("confidence", 0.0)),
-                    reason=result.get("reason", "No reason provided"),
-                    article_title=article.title,
-                    article_url=article.url,
-                )
-        except httpx.HTTPStatusError as e:
-            if attempt < MAX_RETRIES - 1:
-                import asyncio
-                await asyncio.sleep(RETRY_DELAY)
-                continue
-            raise
+                    return ClassificationResult(
+                        article_id=article_id,
+                        relevant=result.get("relevant", False),
+                        confidence=float(result.get("confidence", 0.0)),
+                        reason=result.get("reason", "No reason provided"),
+                        article_title=article.title,
+                        article_url=article.url,
+                    )
+            except httpx.HTTPStatusError as e:
+                if attempt < MAX_RETRIES - 1:
+                    import asyncio
+                    await asyncio.sleep(RETRY_DELAY)
+                    continue
+                raise
 
-    # Should never reach here, but just in case
-    raise RuntimeError("All retries failed")
+        raise RuntimeError("All retries failed")
+
+    except Exception as e:
+        return ClassificationResult(
+            article_id=article_id,
+            relevant=False,
+            confidence=0.0,
+            reason="CLASSIFICATION_FAILED",
+            article_title=article.title,
+            article_url=article.url,
+            error=str(e),
+        )
