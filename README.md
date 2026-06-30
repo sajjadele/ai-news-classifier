@@ -1,68 +1,68 @@
 # AI News Classifier
 
-A 4-phase CLI pipeline that fetches news from RSS feeds, classifies articles by AI relevance using LLM, cleans and deduplicates results, generates bilingual Telegram posts, and publishes them to a Telegram channel.
+A four-phase AI news pipeline that fetches articles from RSS feeds or URLs, classifies AI relevance with an LLM, removes duplicates/noise, generates Persian Telegram posts, and publishes them to a Telegram channel.
 
-## Table of Contents
+## Quick Start
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Pipeline Phases](#pipeline-phases)
-  - [Phase 1: Fetch & Classify](#phase-1-fetch--classify)
-  - [Phase 2: Process & Deduplicate](#phase-2-process--deduplicate)
-  - [Phase 3: Generate Posts](#phase-3-generate-posts)
-  - [Phase 4: Publish to Telegram](#phase-4-publish-to-telegram)
-- [Project Structure](#project-structure)
-- [Tech Stack](#tech-stack)
-- [Setup](#setup)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Prompt Engineering](#prompt-engineering)
-- [Design Decisions](#design-decisions)
+```bash
+git clone git@github.com:sajjadele/ai-news-classifier.git
+cd ai-news-classifier
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+
+cp config.example.yaml config.yaml
+# Fill in your API key and optional Telegram settings
+
+python3 cli.py classify "https://techcrunch.com/category/artificial-intelligence/feed/" \
+  --limit 5 \
+  --process \
+  --generate \
+  --dry-run
+```
+
+To publish generated posts to Telegram:
+
+```bash
+python3 cli.py classify RSS_URL --process --generate --send
+```
 
 ---
 
 ## Overview
 
-This tool automates the process of monitoring tech news for AI-related content. It's designed to:
+The pipeline is designed for monitoring AI news and converting relevant stories into Telegram-ready posts.
 
-1. **Fetch** articles from RSS feeds (TechCrunch, The Verge, etc.)
-2. **Classify** each article using an LLM to determine AI relevance with calibrated confidence scores
-3. **Process** results — deduplicate similar stories, remove noise, normalize metadata
-4. **Generate** bilingual (Persian + English) Telegram posts with grounded summaries
-5. **Publish** posts to a Telegram channel via Bot API
+Pipeline stages:
 
-The system works with any **OpenAI-compatible API** (OpenRouter, local llama.cpp, vLLM, etc.) and supports HTTP/SOCKS proxies for restricted networks.
+1. Fetch articles from RSS feeds or direct URLs
+2. Classify whether AI is the primary subject of the article
+3. Remove duplicates and obvious noise
+4. Generate Persian Telegram posts with HTML formatting
+5. Publish posts through the Telegram Bot API
+
+The project works with any OpenAI-compatible API endpoint.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  RSS Feeds   │────▶│   Phase 1    │────▶│   Phase 2    │────▶│   Phase 3    │────▶│   Phase 4    │
-│  (feedparser)│     │  Classifier  │     │  Processor   │     │  Generator   │     │  Publisher   │
-│              │     │  (LLM API)   │     │  (rule-based)│     │  (LLM API)   │     │  (Bot API)   │
-└─────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
-                           │                     │                     │                     │
-                     Relevant/Not          Deduplicated          Persian +            Telegram
-                     + Confidence          + Cleaned             English              Channel
-                     + Reason              + Normalized          Posts                (@channel)
-```
-
-### Data Flow
-
-```
-RSS URL → fetcher.py → list[Article]
-    ↓
-Article[] → classifier.py → list[Classification]  (each with: relevant, confidence, reason, summary, facts)
-    ↓
-filter relevant only
-    ↓
-Article[] + Classification[] → processor.py → list[ProcessedItem]  (deduped, noise-removed)
-    ↓
-ProcessedItem[] → generator.py → list[str]  (Telegram-ready posts)
-    ↓
-str[] → publisher.py → Telegram Bot API → Channel
+RSS Feed / URL
+       ↓
+fetcher.py
+       ↓
+classifier.py
+       ↓
+processor.py
+       ↓
+generator.py
+       ↓
+publisher.py
+       ↓
+Telegram Channel
 ```
 
 ---
@@ -71,283 +71,248 @@ str[] → publisher.py → Telegram Bot API → Channel
 
 ### Phase 1: Fetch & Classify
 
-**Module:** `classifier/fetcher.py` + `classifier/classifier.py`
+Modules:
+- `classifier/fetcher.py`
+- `classifier/classifier.py`
 
-- Parses RSS feeds using `feedparser` or fetches a single URL
-- Each article (title + body + source) is sent to an LLM with a structured prompt
-- LLM returns a JSON object with:
-  - `relevant`: boolean — is this about AI/ML/LLMs?
-  - `confidence`: float 0.0–1.0 — how confident is the classification?
-  - `reason`: one-sentence explanation
-  - `summary`: 1–2 sentence grounded summary (only from article text)
-  - `facts`: list of factual bullet points extracted from the article
-- Uses **2-attempt retry** on parse failures
-- Returns `ClassificationResult` Pydantic model per article
+Features:
+- Fetches RSS feeds using `feedparser`
+- Supports direct article URLs
+- Uses async `httpx` clients
+- Removes basic HTML tags before classification
+- Limits article content length before sending to the LLM
+- Returns structured `ClassificationResult` objects
 
-**Confidence calibration:** The prompt includes explicit tier guidance to prevent the LLM from defaulting to `1.00`:
-- `0.95–1.00` = clearly AI-focused
-- `0.80–0.94` = AI mentioned prominently
-- `0.60–0.79` = AI is secondary topic
-- `0.40–0.59` = tangential AI mention
-- `0.00–0.39` = barely related
+Classification behavior:
+- The classifier only marks articles as relevant when AI is the primary subject
+- Company names alone are not enough for relevance
+- The prompt explicitly distinguishes AI technology news from business/newsroom activity
+
+Actual confidence calibration from `SYSTEM_PROMPT`:
+
+- `0.90–1.00` → AI is unambiguously the main subject
+- `0.70–0.89` → AI is likely the main subject with minor ambiguity
+- `0.50–0.69` → borderline relevance
+- `<0.50` → AI is incidental or not central
+
+The classifier uses:
+- temperature `0.0`
+- max tokens `200`
+- up to `3` retries for HTTP/API failures
+- JSON parsing with fallback handling when the model returns invalid output
+
+Returned fields:
+
+```json
+{
+  "relevant": true,
+  "confidence": 0.91,
+  "reason": "The primary subject is an AI model release."
+}
+```
 
 ### Phase 2: Process & Deduplicate
 
-**Module:** `classifier/processor.py`
+Module:
+- `classifier/processor.py`
 
-- Rule-based (no LLM calls) — fast and deterministic
-- **Title normalization:** strips source prefixes like "TechCrunch:", "The Verge |", date suffixes, clickbait phrases
-- **Deduplication:** groups articles with >60% word overlap in titles, keeps highest confidence
-- **Noise removal:** filters out items with confidence < 0.7, empty summaries, or too-short titles
-- **Fact flattening:** joins list of facts into a single string for downstream use
+This phase is fully rule-based and deterministic.
+
+Processing steps:
+
+1. Deduplication
+2. Noise removal
+3. Title normalization
+
+Deduplication method:
+- Uses `difflib.SequenceMatcher`
+- Duplicate threshold: `0.82` title similarity
+- Requires publication times within a `48 hour` window
+- Keeps the higher-confidence item
+- Uses content length as a tie-breaker
+
+Noise removal rules:
+- Removes empty content
+- Removes content shorter than `80` characters
+- Removes promotional/newsletter-style articles
+
+Title normalization:
+- Removes excessive emoji usage
+- Normalizes whitespace
+- Preserves article meaning
 
 ### Phase 3: Generate Posts
 
-**Module:** `classifier/generator.py`
+Module:
+- `classifier/generator.py`
 
-- Takes processed items and generates bilingual Telegram posts via LLM
-- Each post includes:
-  - Persian headline with 🔴 or 🟡 emoji (based on confidence)
-  - Grounded summary (3–4 sentences, Persian)
-  - "Why it matters" section (1–2 sentences explaining real-world impact)
-  - English tags: `#Topic` + `#Source`
-  - Source link
-- **Batch processing:** 2 items per LLM call (avoids prompt overflow)
-- **Fallback:** if batch fails, retries each item individually
-- Posts are returned as plain strings, ready for publishing
+Generation behavior:
+- Each article is processed individually
+- No batching is used
+- Posts with confidence below `0.70` are skipped
+- Uses HTML-formatted Telegram output
+- Uses one LLM call per post
+
+Formatting rules enforced in the prompt:
+- `<b>` for titles
+- `<blockquote>` for bullet summaries
+- `<i>` for analysis text
+- `<a href="...">` for source links
+- Markdown formatting is explicitly forbidden
+
+Hashtag rules from the prompt:
+- All hashtags appear on one line
+- Maximum of 4 hashtags total
+- One required category hashtag:
+  - `#پژوهش`
+  - `#سیاست`
+  - `#صنعت`
+  - `#محصول`
+- Additional entity/topic hashtags are added when relevant
+
+The generator uses:
+- temperature `0.5`
+- max tokens `600`
+- up to `3` retries for HTTP/API failures
 
 ### Phase 4: Publish to Telegram
 
-**Module:** `classifier/publisher.py`
+Module:
+- `classifier/publisher.py`
 
-- Sends posts to a Telegram channel via Bot API (`sendMessage`)
-- Uses `HTML` parse mode (not Markdown) for reliable formatting
-- Handles Telegram's 4096-char limit by splitting at paragraph boundaries
-- 3-second delay between posts to avoid rate limits
-- Supports `--dry-run` to preview without sending
+Publishing behavior:
+- Sends messages through Telegram Bot API `sendMessage`
+- Uses `parse_mode="HTML"`
+- Uses `disable_web_page_preview=False`
+- Splits messages larger than Telegram's 4096-character limit
+- Splits at double-newline boundaries when possible
+- Waits `3` seconds between posts by default
+
+Retry/error behavior:
+- Publisher does not retry failed Telegram sends
+- Errors are caught and logged
+- `send_post()` returns `True` or `False`
+- `publish_posts()` tracks sent vs failed posts
 
 ---
 
 ## Project Structure
 
-```
+```text
 ai-news-classifier/
-├── cli.py                    # Typer CLI entry point — orchestrates all 4 phases
-├── config.yaml               # Runtime config (API keys, feeds, Telegram token)
-├── config.example.yaml       # Template config (safe to commit)
-├── requirements.txt          # Python dependencies
-├── .gitignore
+├── cli.py
+├── config.yaml
+├── config.example.yaml
+├── requirements.txt
 ├── classifier/
-│   ├── __init__.py
-│   ├── fetcher.py            # Phase 1a: RSS/URL fetching (feedparser + httpx)
-│   ├── classifier.py         # Phase 1b: LLM classification (OpenAI-compatible API)
-│   ├── models.py             # Pydantic models (Article, ClassificationResult)
-│   ├── processor.py          # Phase 2: Rule-based dedup + noise removal
-│   ├── generator.py          # Phase 3: LLM post generation (Persian + English)
-│   └── publisher.py          # Phase 4: Telegram Bot API publisher
-└── *.json / *.txt            # Test results and outputs (not committed)
+│   ├── fetcher.py
+│   ├── classifier.py
+│   ├── generator.py
+│   ├── models.py
+│   ├── processor.py
+│   └── publisher.py
+└── eval/
+    ├── run_eval.py
+    └── test_set.csv
+```
+
+---
+
+## Configuration
+
+Create your local configuration:
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+Example configuration:
+
+```yaml
+api_base: "https://your-openai-compatible-api/v1"
+api_key: "YOUR_API_KEY"
+model: "your-model-name"
+
+proxy: "http://YOUR_PROXY:PORT"
+
+feeds:
+  - name: "TechCrunch AI"
+    url: "https://techcrunch.com/category/artificial-intelligence/feed/"
+
+telegram_token: "YOUR_BOT_TOKEN"
+telegram_channel: "@your_channel"
+```
+
+All runtime values are loaded from `config.yaml`.
+
+---
+
+## Usage
+
+Full pipeline:
+
+```bash
+python3 cli.py classify RSS_URL \
+  --limit 10 \
+  --process \
+  --generate \
+  --send
+```
+
+Classification only:
+
+```bash
+python3 cli.py classify RSS_URL --limit 10
+```
+
+Generate posts without publishing:
+
+```bash
+python3 cli.py classify RSS_URL \
+  --process \
+  --generate \
+  --dry-run
+```
+
+Single article URL:
+
+```bash
+python3 cli.py classify "https://example.com/article"
+```
+
+---
+
+## Example Output
+
+Sample generated posts from the current pipeline:
+
+```text
+🧠 پایان انحصار Nvidia در تراشه‌های هوش مصنوعی (Custom AI Chips Shift)
+
+• OpenAI تراشه سفارشی Jalapeño (با همکاری Broadcom) را برای استنتاج معرفی کرد
+• شرکت‌هایی مانند Google، Apple و SpaceX نیز در حال توسعه تراشه‌های اختصاصی برای کاهش وابستگی به یک تامین‌کننده هستند
+• این حرکت خطر تک‌تامینی (single-supplier risk) را در زنجیره تامین AI کاهش می‌دهد
+
+🔍 چرا مهم است:
+Technical shift — وابستگی مطلق به Nvidia در حال جایگزیری با معماری‌های سفارشی و متنوع‌تر است
+
+#AIHardware
+📖 مطالعه کامل مقاله در TechCrunch
+https://techcrunch.com/video/why-everyone-from-openai-to-spacex-is-building-their-own-chips-and-turning-up-the-heat-on-nvidia/
 ```
 
 ---
 
 ## Tech Stack
 
-| Component | Library | Purpose |
-|-----------|---------|---------|
-| CLI framework | `typer` + `rich` | Command-line interface with colored output, tables, progress bars |
-| HTTP client | `httpx` (async) | Async HTTP with proxy support (SOCKS/HTTP) |
-| RSS parsing | `feedparser` | Parse RSS/Atom feeds |
-| Data models | `pydantic` v2 | Typed models with validation (Article, ClassificationResult) |
-| Config | `pyyaml` | YAML config file loading |
-| LLM API | OpenAI-compatible | Any `/v1/chat/completions` endpoint (OpenRouter, local, etc.) |
-| Telegram | Bot API (httpx) | Direct HTTP calls to `api.telegram.org` |
-
----
-
-## Setup
-
-### Prerequisites
-
-- Python 3.12+
-- An OpenAI-compatible API key (e.g., OpenRouter, Mistral, local llama.cpp)
-- (Optional) Telegram Bot token for publishing
-
-### Installation
-
-```bash
-git clone git@github.com:sajjadele/ai-news-classifier.git
-cd ai-news-classifier
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Configuration
-
-```bash
-cp config.example.yaml config.yaml
-# Edit config.yaml with your API key, model, and optional Telegram credentials
-```
-
-**config.yaml fields:**
-
-```yaml
-api_base: "https://router.bynara.id/v1"   # OpenAI-compatible endpoint
-api_key: "YOUR_API_KEY"                    # API key
-model: "mistral-medium-3-5"               # Model name
-proxy: "http://127.0.0.1:10808/"          # HTTP/SOCKS proxy (optional)
-
-feeds:                                      # RSS feeds to monitor
-  - name: "TechCrunch AI"
-    url: "https://techcrunch.com/category/artificial-intelligence/feed/"
-
-telegram_token: "YOUR_BOT_TOKEN"           # For Phase 4 (optional)
-telegram_channel: "@your_channel"          # Target channel
-```
-
----
-
-## Usage
-
-### Full Pipeline (all 4 phases)
-
-```bash
-python3 cli.py classify "https://techcrunch.com/category/artificial-intelligence/feed/" \
-  --limit 10 \
-  --process \
-  --generate \
-  --posts-file posts.txt \
-  --send
-```
-
-### Classify Only (Phase 1)
-
-```bash
-python3 cli.py classify "https://techcrunch.com/category/artificial-intelligence/feed/" \
-  --limit 10 \
-  --output results.json
-```
-
-### Classify + Process (Phase 1 + 2)
-
-```bash
-python3 cli.py classify RSS_URL --limit 10 --process --output results.json
-```
-
-### Dry Run (preview posts without sending)
-
-```bash
-python3 cli.py classify RSS_URL --limit 10 -p -g --dry-run
-```
-
-### Single Article
-
-```bash
-python3 cli.py classify "https://example.com/article-url"
-```
-
-### CLI Flags
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--output` | `-o` | Save results to JSON file |
-| `--limit` | `-n` | Max articles from RSS feed (default: 10) |
-| `--model` | `-m` | Override LLM model from config |
-| `--api-base` | | Override API base URL |
-| `--api-key` | | Override API key |
-| `--process` | `-p` | Run Phase 2 (dedup + noise removal) |
-| `--generate` | `-g` | Run Phase 3 (Telegram post generation) |
-| `--posts-file` | | Save generated posts to .txt file |
-| `--publish` | | Send posts to Telegram |
-| `--send` | `-s` | Alias for `--publish` |
-| `--dry-run` | | Show posts without sending (mutually exclusive with `--send`) |
-
----
-
-## Prompt Engineering
-
-The classifier prompt is the core of Phase 1 accuracy. Key design choices:
-
-### Two-Message Structure
-- **System message:** defines the AI's role and task
-- **User message:** contains the article data (title, body, source)
-
-This separation improves reliability compared to a single combined prompt.
-
-### Confidence Calibration
-Without explicit guidance, LLMs default to `confidence: 1.00` for everything. The prompt includes a tiered scale:
-```
-0.95–1.00 = clearly AI-focused
-0.80–0.94 = AI mentioned prominently
-0.60–0.79 = AI is secondary topic
-0.40–0.59 = tangential AI mention
-0.00–0.39 = barely related
-```
-
-### Grounded Summaries
-The prompt explicitly forbids hallucination:
-> "Summarize using ONLY the information in the article. Do NOT add external knowledge."
-
-### Strict Relevance Criteria
-Articles must focus on **applied AI** — not just mention "intelligence" or "smart" in other contexts. Examples:
-- ✅ "OpenAI launches new model" → clearly AI
-- ✅ "AI-powered drug discovery startup raises $50M" → applied AI
-- ❌ "The intelligent design of modern buildings" → not AI
-- ❌ "Smart home market grows 15%" → IoT, not AI/ML
-
----
-
-## Design Decisions
-
-### Why Rule-Based Phase 2?
-Deduplication and noise removal are deterministic tasks. Using an LLM would add latency and cost without improving accuracy. The rule-based approach is:
-- **Fast:** no API calls
-- **Predictable:** same input → same output
-- **Debuggable:** easy to trace why something was removed
-
-### Why HTML Parse Mode for Telegram?
-Markdown formatting in Telegram is unreliable (underscores in URLs break italic, etc.). HTML with `<b>bold</b>` tags is more predictable.
-
-### Why Batch Size 2 for Post Generation?
-Each processed item needs a headline, summary, "why it matters", and tags. With 2 items per call, the prompt stays under most model context limits while reducing API calls by 50% compared to item-per-call.
-
-### Why Proxy Support?
-The project is developed in Iran, where direct access to external APIs requires a proxy. All HTTP clients (`httpx`) accept an optional `proxy` parameter, and `verify=False` is used for self-signed certificates common in proxy setups.
-
----
-
-## Example Output
-
-### Phase 1 Classification Table
-```
-┌───┬──────────────────────────────────┬────────────┬────────────┬──────────────────────────────┐
-│ # │ Title                            │ Relevant   │ Confidence │ Reason                       │
-├───┼──────────────────────────────────┼────────────┼────────────┼──────────────────────────────┤
-│ 1 │ OpenAI releases GPT-5            │ ✓ Yes      │ 0.98       │ Direct AI model release      │
-│ 2 │ Tech stocks rise amid optimism   │ ✗ No       │ 0.15       │ General market news          │
-│ 3 │ AI drug discovery startup        │ ✓ Yes      │ 0.92       │ Applied AI in healthcare     │
-└───┴──────────────────────────────────┴────────────┴────────────┴──────────────────────────────┘
-```
-
-### Phase 3 Generated Post
-```
-🔴 خبر فوری هوش مصنوعی
-
-*اپن‌ای‌ای مدل GPT-5 را معرفی کرد*
-
-اپن‌ای‌ای امروز نسل جدید مدل زبانی خود، GPT-5، را منتشر کرد.
-این مدل قابلیتهای پیشرفته‌تری در استدلال و تحلیل تصویر دارد.
-
-⚡ چرا مهمه؟
-رقابت بین شرکتهای هوش مصنوعی با سرعت بالایی ادامه دارد و این نسخه جدید استانداردهای صنعت را بالاتر می‌برد.
-
-#GPT5 #OpenAI
-
-🔗 TechCrunch
-```
+- `httpx` — async HTTP client
+- `feedparser` — RSS parsing
+- `pydantic` — typed data models
+- `pyyaml` — YAML config loading
+- `typer` + `rich` — CLI interface
 
 ---
 
 ## License
 
-This project is for personal/educational use.
+Personal and educational use.

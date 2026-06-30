@@ -4,10 +4,11 @@ Completely rule-based and deterministic. No LLM calls.
 """
 
 import re
-import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime
 from difflib import SequenceMatcher
 from urllib.parse import urlparse
+
+from pydantic import BaseModel
 
 from .models import Article, ClassificationResult
 
@@ -50,12 +51,11 @@ EMOJI_PATTERN = re.compile(
 
 # ── Helper: Wrapped result with metadata ──────────────────────────────────
 
-class ProcessedItem:
+class ProcessedItem(BaseModel):
     """Wraps article + classification for processing pipeline."""
 
-    def __init__(self, article: Article, classification: ClassificationResult):
-        self.article = article
-        self.classification = classification
+    article: Article
+    classification: ClassificationResult
 
     def to_dict(self) -> dict:
         return {
@@ -208,11 +208,18 @@ def _clean_title(title: str) -> str:
 def normalize_titles(items: list[ProcessedItem]) -> list[ProcessedItem]:
     """Normalize titles: remove excessive emojis, clean whitespace.
 
-    Content is NOT modified.
+    Returns new ProcessedItem instances — original articles are NOT mutated.
     """
+    result = []
     for item in items:
-        item.article.title = _clean_title(item.article.title)
-    return items
+        cleaned_title = _clean_title(item.article.title)
+        if cleaned_title != item.article.title:
+            # Create new article with cleaned title, preserve rest
+            new_article = item.article.model_copy(update={"title": cleaned_title})
+            result.append(ProcessedItem(article=new_article, classification=item.classification))
+        else:
+            result.append(item)
+    return result
 
 
 # ── Main Pipeline ─────────────────────────────────────────────────────────

@@ -181,7 +181,7 @@ async def classify_article(
                         article_title=article.title,
                         article_url=article.url,
                     )
-            except httpx.HTTPStatusError as e:
+            except httpx.HTTPError as e:
                 if attempt < MAX_RETRIES - 1:
                     import asyncio
                     await asyncio.sleep(RETRY_DELAY)

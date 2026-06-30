@@ -2,16 +2,12 @@
 
 import asyncio
 import json
-import sys
 from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
-
-# Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
 
 from classifier.fetcher import fetch_rss, fetch_url
 from classifier.classifier import classify_article
